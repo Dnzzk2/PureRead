@@ -1,0 +1,465 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>PureRead 控制中心</title>
+    <style>
+      :root {
+        --primary: hsl(210, 100%, 56%);
+        --primary-soft: hsl(210, 100%, 96%);
+        --bg: #f8f9fa;
+        --card-bg: #ffffff;
+        --border: hsl(210, 14%, 90%);
+        --text: hsl(210, 24%, 16%);
+        --text-light: hsl(210, 12%, 45%);
+        --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        --shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #121214;
+          --card-bg: #1c1c1e;
+          --border: #2c2c2e;
+          --text: #f5f5f7;
+          --text-light: #94949e;
+          --primary-soft: rgba(0, 123, 255, 0.1);
+        }
+      }
+
+      body {
+        margin: 0;
+        padding: 40px;
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        display: flex;
+        justify-content: center;
+      }
+      .container {
+        width: 100%;
+        max-width: 1000px;
+      }
+      header {
+        margin-bottom: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      header h1 {
+        margin: 0;
+        font-family: "Georgia", serif;
+        font-weight: 900;
+        font-size: 36px;
+        letter-spacing: -1px;
+        background: linear-gradient(135deg, var(--primary), #4facfe);
+        background-clip: text;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-style: italic;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr 320px;
+        gap: 32px;
+      }
+
+      .section {
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 24px;
+        padding: 32px;
+        box-shadow: var(--shadow);
+        margin-bottom: 32px;
+      }
+
+      h2 {
+        margin-top: 0;
+        font-size: 20px;
+        font-weight: 800;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 24px;
+      }
+      h2 i {
+        width: 5px;
+        height: 18px;
+        background: var(--primary);
+        border-radius: 3px;
+      }
+
+      /* 方案列表 (List Style) */
+      .scheme-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .scheme-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16px 24px;
+        background: var(--bg);
+        border: 1.5px solid var(--border);
+        border-radius: 16px;
+        transition: var(--transition);
+      }
+      .scheme-item:hover {
+        border-color: var(--primary);
+        transform: translateX(8px);
+      }
+      .scheme-info {
+        flex: 1;
+      }
+      .scheme-title {
+        font-weight: 700;
+        font-size: 16px;
+        margin-bottom: 4px;
+      }
+      .scheme-meta {
+        font-size: 12px;
+        color: var(--text-light);
+      }
+      .scheme-actions {
+        display: flex;
+        gap: 12px;
+      }
+
+      /* 管理按钮 */
+      .action-btn {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: 0.2s;
+        border: none;
+        background: var(--card-bg);
+        color: var(--text-light);
+        border: 1px solid var(--border);
+      }
+      .action-btn:hover {
+        background: var(--primary-soft);
+        color: var(--primary);
+        border-color: var(--primary);
+      }
+      .action-btn.del:hover {
+        background: #fee2e2;
+        color: #ef4444;
+        border-color: #ef4444;
+      }
+
+      /* 黑白名单区域 */
+      .notice-card {
+        background: var(--primary-soft);
+        border-radius: 16px;
+        padding: 20px;
+        margin-bottom: 24px;
+        border: 1px solid rgba(0, 123, 255, 0.1);
+      }
+      .notice-card h3 {
+        margin: 0 0 10px 0;
+        font-size: 15px;
+        color: var(--primary);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .notice-card p {
+        margin: 0;
+        font-size: 13px;
+        line-height: 1.6;
+        color: var(--text-light);
+      }
+
+      .site-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .site-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 16px;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+      }
+      .site-domain {
+        font-family: monospace;
+        font-weight: 600;
+      }
+      .badge {
+        font-family:
+          ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas,
+          monospace;
+        font-size: 11px;
+        padding: 2px 8px;
+        border-radius: 6px;
+        font-weight: 600;
+        letter-spacing: -0.2px;
+      }
+      .badge-off {
+        background: #fee2e2;
+        color: #ef4444;
+      }
+      .badge-custom {
+        background: var(--primary-soft);
+        color: var(--primary);
+      }
+
+      /* 自定义模态框 */
+      .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.4);
+        backdrop-filter: blur(4px);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        animation: fadeIn 0.3s;
+      }
+      .modal {
+        background: var(--card-bg);
+        width: 100%;
+        max-width: 440px;
+        border-radius: 24px;
+        padding: 32px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+        transform: translateY(20px);
+        animation: slideUp 0.3s forwards;
+      }
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+      @keyframes slideUp {
+        to {
+          transform: translateY(0);
+        }
+      }
+
+      .modal-title {
+        font-size: 20px;
+        font-weight: 800;
+        margin-bottom: 12px;
+      }
+      .modal-body {
+        font-size: 14px;
+        color: var(--text-light);
+        margin-bottom: 24px;
+        line-height: 1.6;
+      }
+      .modal-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+      }
+
+      .btn {
+        padding: 10px 20px;
+        border-radius: 12px;
+        font-weight: 700;
+        cursor: pointer;
+        font-size: 14px;
+        border: none;
+        transition: 0.2s;
+      }
+      .btn-ghost {
+        background: var(--bg);
+        color: var(--text);
+      }
+      .btn-ghost:hover {
+        background: var(--border);
+      }
+      .btn-primary {
+        background: var(--primary);
+        color: white;
+      }
+      .btn-primary:hover {
+        opacity: 0.9;
+        transform: scale(1.02);
+      }
+      .btn-danger {
+        background: #ef4444;
+        color: white;
+      }
+
+      /* 表单样式 */
+      .form-group {
+        margin-bottom: 20px;
+      }
+      .form-label {
+        display: block;
+        font-size: 13px;
+        font-weight: 700;
+        margin-bottom: 8px;
+        color: var(--text);
+      }
+      .form-input {
+        width: 100%;
+        padding: 12px 16px;
+        background: var(--bg);
+        border: 2px solid var(--border);
+        border-radius: 12px;
+        font-size: 14px;
+        color: var(--text);
+        box-sizing: border-box;
+        outline: none;
+      }
+      .form-input:focus {
+        border-color: var(--primary);
+      }
+
+      .empty {
+        font-style: italic;
+        color: var(--text-light);
+        font-size: 14px;
+        text-align: center;
+        padding: 40px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>PureRead</h1>
+        <div
+          style="font-size: 13px; color: var(--text-light); font-weight: 500"
+        >
+          高级设置中心
+        </div>
+      </header>
+
+      <div class="grid">
+        <div class="left-col">
+          <!-- 方案管理 -->
+          <div class="section">
+            <h2><i></i>存储方案库</h2>
+            <div id="schemes-container" class="scheme-list">
+              <!-- JS Rendering -->
+            </div>
+          </div>
+
+          <!-- 黑白名单管理 -->
+          <div class="section">
+            <div
+              style="
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 20px;
+              "
+            >
+              <h2 style="margin-bottom: 0"><i></i>站点管理中心</h2>
+              <button
+                id="clear-sites"
+                class="btn btn-ghost"
+                style="font-size: 12px; padding: 6px 12px; color: #ef4444"
+              >
+                清空全部记录
+              </button>
+            </div>
+
+            <div class="notice-card">
+              <h3>管理逻辑说明</h3>
+              <p>
+                当你在某个站点手动切换开关或选择“单独定制”时，系统会自动在此生成一条记录。<br />
+                <b>白名单：</b>在总开关关闭的情况下，这里的
+                <b>ON</b> 站点仍会生效。<br />
+                <b>黑名单：</b>在总开关开启的情况下，这里的
+                <b>OFF</b> 站点将不再修改任何字体。
+              </p>
+            </div>
+
+            <div id="sites-container" class="site-list">
+              <!-- JS Rendering -->
+            </div>
+          </div>
+        </div>
+
+        <!-- 侧边栏 -->
+        <div class="right-col">
+          <div class="section">
+            <h2><i></i>存储容量</h2>
+            <div
+              style="
+                padding: 12px;
+                background: var(--bg);
+                border: 1px solid var(--border);
+                border-radius: 12px;
+              "
+            >
+              <div
+                style="
+                  font-size: 13px;
+                  font-weight: 700;
+                  display: flex;
+                  justify-content: space-between;
+                "
+              >
+                <span>空间占用</span>
+                <span id="storage-percentage" style="color: var(--primary)"
+                  >0%</span
+                >
+              </div>
+              <div
+                style="
+                  height: 6px;
+                  background: var(--border);
+                  border-radius: 3px;
+                  margin: 10px 0;
+                  overflow: hidden;
+                "
+              >
+                <div
+                  id="storage-bar"
+                  style="
+                    width: 0%;
+                    height: 100%;
+                    background: var(--primary);
+                    transition: width 0.5s;
+                  "
+                ></div>
+              </div>
+              <div
+                id="storage-text"
+                style="font-size: 11px; color: var(--text-light)"
+              >
+                载入中...
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 自定义模态框 (通用) -->
+    <div class="modal-overlay" id="modal-overlay">
+      <div class="modal">
+        <div class="modal-title" id="modal-title">标题</div>
+        <div class="modal-body" id="modal-body">内容</div>
+        <div id="modal-custom-content"></div>
+        <div class="modal-footer">
+          <button class="btn btn-ghost" id="modal-cancel">取消</button>
+          <button class="btn btn-primary" id="modal-confirm">确定</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="options.js"></script>
+  </body>
+</html>
