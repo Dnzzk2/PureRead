@@ -5,6 +5,7 @@ const DEFAULT_MAPPING = {
 };
 
 const DEFAULT_TYPO = {
+  enabled: true,
   lineHeight: "1.6",
   fontSize: "100",
   fontWeight: "0",
@@ -19,6 +20,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     mappingLabel: document.getElementById("mapping-label"),
     selectors: document.querySelectorAll(".font-input"),
     typoRanges: document.querySelectorAll(".style-range"),
+    typoSwitch: document.getElementById("typo-switch"),
+    typoCard: document.getElementById("typo-card"),
     loading: document.getElementById("loading-tip"),
   };
 
@@ -64,6 +67,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (activeModeInput) activeModeInput.checked = true;
 
     updateMappingUI(data, siteData);
+    updateTypoSwitchUI();
 
     setTimeout(() => sliders.forEach((s) => (s.style.transition = "")), 50);
 
@@ -79,7 +83,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         (sel) => (currentMapping[sel.dataset.key] = sel.value),
       );
 
-      const currentTypo = {};
+      const currentTypo = {
+        enabled: els.typoSwitch.checked,
+      };
       els.typoRanges.forEach((r) => {
         currentTypo[r.dataset.key] = r.value;
         updateTypoLabel(r);
@@ -143,6 +149,15 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     }
 
+    function updateTypoSwitchUI() {
+      const checkedMode = document.querySelector('input[name="mode"]:checked');
+      const isCustom = checkedMode && checkedMode.value === "custom";
+      const activeTypo = (isCustom ? siteData.typo : data.global.typo) || DEFAULT_TYPO;
+      els.typoSwitch.checked = activeTypo.enabled !== false;
+      els.typoCard.style.opacity = els.typoSwitch.checked ? "1" : "0.5";
+      els.typoCard.style.pointerEvents = els.typoSwitch.checked ? "auto" : "none";
+    }
+
     // 事件绑定
     els.globalSwitch.addEventListener("change", saveData);
     els.siteSwitch.addEventListener("change", saveData);
@@ -154,6 +169,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     );
 
     els.typoRanges.forEach((r) => r.addEventListener("input", saveData));
+    els.typoSwitch.addEventListener("change", () => {
+      // 直接根据开关状态更新 UI 外观
+      els.typoCard.style.opacity = els.typoSwitch.checked ? "1" : "0.5";
+      els.typoCard.style.pointerEvents = els.typoSwitch.checked ? "auto" : "none";
+      saveData();
+    });
 
     // 输入框交互增强
     els.selectors.forEach((input) => {
@@ -173,9 +194,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       });
     });
 
-    // 点击空白处关闭下拉
+    // 点击空白处或标签关闭下拉
     document.addEventListener("click", (e) => {
-      if (!e.target.closest(".setting-item")) {
+      if (!e.target.closest(".setting-item") || e.target.closest(".setting-label")) {
         document
           .querySelectorAll(".dropdown-list")
           .forEach((d) => (d.style.display = "none"));

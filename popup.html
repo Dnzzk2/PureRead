@@ -70,6 +70,7 @@
         background-clip: text; /* 标准属性 */
         letter-spacing: -1px;
         font-style: italic; /* 增加艺术感 */
+        padding-right: 2px; /* 防止斜体最后字母被截断 */
       }
       .header-actions {
         display: flex;
@@ -240,6 +241,10 @@
       .input-icon {
         position: absolute;
         left: 12px;
+        top: 0;
+        bottom: 0;
+        display: flex;
+        align-items: center;
         color: var(--text-light);
         pointer-events: none;
       }
@@ -265,6 +270,8 @@
       .chevron-icon {
         position: absolute;
         right: 38px; /* 拉开与重置按钮的间距 */
+        top: 0;
+        bottom: 0;
         color: var(--text-light);
         opacity: 0.4;
         transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -285,6 +292,8 @@
       .reset-btn {
         position: absolute;
         right: 8px;
+        top: 0;
+        bottom: 0;
         background: transparent;
         border: none;
         padding: 6px;
@@ -693,10 +702,17 @@
       </div>
     </div>
 
-    <div class="section-title">
-      <i></i><span>排版细节 (<span id="mapping-label">全局</span>)</span>
+    <div class="section-title" style="justify-content: space-between;">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <i></i><span>排版细节 (<span id="mapping-label">全局</span>)</span>
+      </div>
+      <label class="switch" style="transform: scale(0.85);"
+        ><input type="checkbox" id="typo-switch" checked /><span
+          class="slider"
+        ></span
+      ></label>
     </div>
-    <div class="card">
+    <div class="card" id="typo-card">
       <div class="setting-item" style="margin-bottom: 12px">
         <label
           class="setting-label"

@@ -1,12 +1,39 @@
 // 全局变量
 let allSchemes = [];
 let allSettings = {};
+let allFonts = []; // 系统字体列表
 
 // 初始化
-function init() {
+async function init() {
+  await loadSystemFonts();
   loadData();
   updateStorageInfo();
   bindGlobalEvents();
+}
+
+// 加载系统字体
+async function loadSystemFonts() {
+  const FALLBACK_FONTS = [
+    "Microsoft YaHei", "SimSun", "Arial", "Consolas",
+    "PingFang SC", "Hiragino Sans GB", "Source Han Sans",
+    "Noto Sans SC", "Roboto", "Inter", "Fira Code"
+  ];
+
+  try {
+    const cached = await chrome.storage.local.get("fontCache");
+    if (cached.fontCache && cached.fontCache.length > 0) {
+      allFonts = cached.fontCache;
+    }
+
+    if (chrome.fontSettings) {
+      chrome.fontSettings.getFontList((fonts) => {
+        allFonts = [...new Set(fonts.map((f) => f.fontId))].sort();
+        chrome.storage.local.set({ fontCache: allFonts });
+      });
+    }
+  } catch (e) {
+    allFonts = FALLBACK_FONTS;
+  }
 }
 
 function loadData() {
@@ -89,26 +116,63 @@ function renderSchemes(schemes) {
     // 编辑方案
     item.querySelector(".edit-btn").onclick = () => {
       modal.show({
-        title: "编辑方案信息",
-        body: "您可以重命名方案或微调关键字体。更多细节请在弹窗逻辑中重新保存。",
+        title: "编辑方案配置",
+        body: "",
         customHTML: `
           <div class="form-group">
             <label class="form-label">方案名称</label>
             <input type="text" id="edit-name" class="form-input" value="${s.name}" maxlength="12">
           </div>
-          <div class="form-group">
-            <label class="form-label">标准字体名称</label>
-            <input type="text" id="edit-std" class="form-input" value="${s.mapping.standard}">
-          </div>
+          <table style="width: 100%; border-collapse: collapse; margin-top: 16px;">
+            <thead>
+              <tr style="border-bottom: 2px solid var(--border);">
+                <th style="text-align: left; padding: 8px 0; font-size: 13px; font-weight: 700; color: var(--text-light); width: 100px;">字体类型</th>
+                <th style="text-align: left; padding: 8px 0; font-size: 13px; font-weight: 700; color: var(--text-light);">字体名称</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="padding: 12px 0; font-size: 14px; font-weight: 600;">标准字体</td>
+                <td style="padding: 12px 0;">
+                  <div class="font-input-wrapper">
+                    <input type="text" id="edit-std" class="form-input font-edit-input" style="margin: 0;" value="${s.mapping.standard || ''}" placeholder="输入或选择字体" autocomplete="off">
+                    <div class="font-dropdown" id="dropdown-std"></div>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 12px 0; font-size: 14px; font-weight: 600;">等宽字体</td>
+                <td style="padding: 12px 0;">
+                  <div class="font-input-wrapper">
+                    <input type="text" id="edit-mono" class="form-input font-edit-input" style="margin: 0;" value="${s.mapping.mono || ''}" placeholder="输入或选择字体" autocomplete="off">
+                    <div class="font-dropdown" id="dropdown-mono"></div>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 12px 0; font-size: 14px; font-weight: 600;">数学公式</td>
+                <td style="padding: 12px 0;">
+                  <div class="font-input-wrapper">
+                    <input type="text" id="edit-math" class="form-input font-edit-input" style="margin: 0;" value="${s.mapping.math || ''}" placeholder="输入或选择字体" autocomplete="off">
+                    <div class="font-dropdown" id="dropdown-math"></div>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         `,
         confirmText: "更新保存",
         onConfirm: () => {
           const newName = document.getElementById("edit-name").value.trim();
           const newStd = document.getElementById("edit-std").value.trim();
+          const newMono = document.getElementById("edit-mono").value.trim();
+          const newMath = document.getElementById("edit-math").value.trim();
           if (!newName) return false;
 
           allSchemes[index].name = newName;
           allSchemes[index].mapping.standard = newStd;
+          allSchemes[index].mapping.mono = newMono;
+          allSchemes[index].mapping.math = newMath;
 
           chrome.storage.sync.set({ schemes: allSchemes }, () => {
             loadData();
@@ -116,6 +180,11 @@ function renderSchemes(schemes) {
           return true;
         },
       });
+
+      // 绑定字体下拉事件
+      setTimeout(() => {
+        bindFontDropdowns();
+      }, 50);
     };
 
     // 删除方案
@@ -156,7 +225,7 @@ function renderSites(sites) {
   domains.forEach((d) => {
     const row = document.createElement("div");
     row.className = "site-row";
-    const statusText = sites[d].on ? "Custom" : "Disabled";
+    const statusText = sites[d].on ? "ON" : "OFF";
     const badgeClass = sites[d].on ? "badge-custom" : "badge-off";
 
     row.innerHTML = `
@@ -207,6 +276,61 @@ function bindGlobalEvents() {
       },
     });
   };
+}
+
+// 绑定字体下拉选择事件
+function bindFontDropdowns() {
+  const inputs = document.querySelectorAll('.font-edit-input');
+
+  inputs.forEach(input => {
+    const dropdownId = 'dropdown-' + input.id.replace('edit-', '');
+    const dropdown = document.getElementById(dropdownId);
+    if (!dropdown) return;
+
+    // 渲染下拉列表
+    const renderDropdown = (filterText) => {
+      dropdown.innerHTML = '';
+      const filtered = allFonts.filter(f =>
+        f.toLowerCase().includes(filterText.toLowerCase()) || filterText === ''
+      ).slice(0, 50); // 限制显示数量
+
+      if (filtered.length === 0) {
+        dropdown.style.display = 'none';
+        return;
+      }
+
+      filtered.forEach(font => {
+        const item = document.createElement('div');
+        item.className = 'font-dropdown-item';
+        item.innerText = font;
+        item.style.fontFamily = `"${font}", sans-serif`;
+        item.onmousedown = (e) => {
+          e.preventDefault();
+          input.value = font;
+          dropdown.style.display = 'none';
+        };
+        dropdown.appendChild(item);
+      });
+      dropdown.style.display = 'block';
+    };
+
+    // 输入时过滤
+    input.addEventListener('input', () => {
+      renderDropdown(input.value);
+    });
+
+    // 聚焦时显示
+    input.addEventListener('focus', () => {
+      renderDropdown(input.value);
+    });
+
+    // 失焦时隐藏
+    input.addEventListener('blur', () => {
+      setTimeout(() => {
+        dropdown.style.display = 'none';
+      }, 150);
+    });
+  });
 }
 
 init();

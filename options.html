@@ -57,6 +57,7 @@
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         font-style: italic;
+        padding-right: 2px;
       }
 
       .grid {
@@ -330,6 +331,39 @@
         font-size: 14px;
         text-align: center;
         padding: 40px;
+      }
+
+      /* 字体下拉选择 */
+      .font-input-wrapper {
+        position: relative;
+      }
+      .font-dropdown {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        max-height: 200px;
+        overflow-y: auto;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+        z-index: 1001;
+        display: none;
+        padding: 4px;
+        margin-top: 4px;
+      }
+      .font-dropdown-item {
+        padding: 10px 14px;
+        font-size: 14px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: 0.2s;
+        color: var(--text);
+      }
+      .font-dropdown-item:hover {
+        background: var(--primary-soft);
+        color: var(--primary);
       }
     </style>
   </head>
