@@ -3,25 +3,42 @@ chrome.storage.sync.get(["settings"], (result) => {
   if (result.settings) updateContentStyles(result.settings);
 });
 
-// 监听来自 Popup 的实时更新消息
+// 监听来自 Popup 的实时更新消息（当前 tab）
 chrome.runtime.onMessage.addListener((request) => {
   if (request.action === "updateStyles" && request.settings) {
     updateContentStyles(request.settings);
   }
 });
 
+// 监听存储变化（其他页面/tab 的配置更新会触发这里）
+chrome.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName === "sync" && changes.settings) {
+    const newSettings = changes.settings.newValue;
+    if (newSettings) {
+      updateContentStyles(newSettings);
+    }
+  }
+});
+
 function updateContentStyles(settings) {
   const domain = window.location.hostname;
-  const { global, sites } = settings;
+  const global = settings.global || {};
+  const sites = settings.sites || {};
   const site = sites[domain];
 
-  // 站点开关优先级最高（支持白/黑名单）
-  if (!(site ? site.on : global.on)) {
+  // 获取最终生效的开关状态：若站点有明确设置则用站点的，否则用全局的
+  const isEnabled = (site && typeof site.on === "boolean") ? site.on : global.on;
+
+  if (!isEnabled) {
     return removeStyles();
   }
 
   const isCustom = site?.mode === "custom";
-  const mapping = isCustom ? site.mapping : global.mapping;
+  const mapping = (isCustom ? site.mapping : global.mapping) || {
+    standard: "",
+    mono: "",
+    math: "",
+  };
   const typo = (isCustom ? site.typo : global.typo) || {
     enabled: true,
     lineHeight: "1.6",
@@ -103,12 +120,20 @@ function applyStyles(mapping, typo, selectors) {
         : ""
     }
 
-    /* 字重补偿 */
+    /* 字重补偿 - 支持正负值 */
     ${
       typo.fontWeight != "0"
-        ? `
+        ? parseInt(typo.fontWeight) > 0
+          ? `
+    /* 正值：使用 text-stroke 加粗 */
     body *:not([class*="icon"]):not(i)${exclude.media} {
-      -webkit-text-stroke-width: ${Math.max(0, typo.fontWeight / 500)}px;
+      -webkit-text-stroke-width: ${typo.fontWeight / 500}px;
+    }`
+          : `
+    /* 负值：使用 font-weight 减细 + letter-spacing 视觉优化 */
+    body *:not([class*="icon"]):not(i)${exclude.media}:not(h1):not(h2):not(h3) {
+      font-weight: lighter !important;
+      letter-spacing: ${Math.abs(parseInt(typo.fontWeight)) / 400}px;
     }`
         : ""
     }

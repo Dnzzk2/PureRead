@@ -237,12 +237,13 @@ function renderSites(sites) {
   container.innerHTML = "";
 
   const domains = Object.keys(sites).filter((d) => {
-    return sites[d].on === false || sites[d].mode === "custom";
+    // 只要有显式的开关设置（无论开或关），或者有自定义模式，就显示在列表中
+    return typeof sites[d].on === "boolean" || sites[d].mode === "custom";
   });
 
   if (domains.length === 0) {
     container.innerHTML =
-      '<div class="empty">暂无特定站点记录。当你在某个网页关闭开关或单独设置时，它们会出现在这里。</div>';
+      '<div class="empty">暂无特定站点记录。所有网站目前都处于“跟随全局”且开关一致的状态，存储零占用。</div>';
     return;
   }
 
@@ -321,6 +322,97 @@ function bindGlobalEvents() {
         onConfirm: () => true,
       });
     });
+  };
+
+  // ═══ 导出配置 ═══
+  document.getElementById("export-config").onclick = () => {
+    chrome.storage.sync.get(["settings", "schemes"], (res) => {
+      const exportData = {
+        version: "1.0",
+        exportedAt: new Date().toISOString(),
+        settings: res.settings || {},
+        schemes: res.schemes || [],
+      };
+
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `pureread-config-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      modal.show({
+        title: "导出成功",
+        body: "配置文件已下载，请妥善保存。",
+        confirmText: "好的",
+        onConfirm: () => true,
+      });
+    });
+  };
+
+  // ═══ 导入配置 ═══
+  document.getElementById("import-config").onchange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const importData = JSON.parse(event.target.result);
+
+        // 校验数据格式
+        if (!importData.settings && !importData.schemes) {
+          throw new Error("无效的配置文件格式");
+        }
+
+        modal.show({
+          title: "确认导入",
+          body: `
+            <p>即将导入以下配置：</p>
+            <ul style="margin: 12px 0; padding-left: 20px; font-size: 13px;">
+              <li>方案数量：${(importData.schemes || []).length} 个</li>
+              <li>站点设置：${Object.keys(importData.settings?.sites || {}).length} 个</li>
+              <li>导出时间：${importData.exportedAt ? new Date(importData.exportedAt).toLocaleString() : "未知"}</li>
+            </ul>
+            <p style="color: var(--text-muted); font-size: 12px;">⚠️ 这将覆盖当前的所有配置。</p>
+          `,
+          confirmText: "确认导入",
+          isDanger: true,
+          onConfirm: () => {
+            // 执行导入
+            const dataToSave = {};
+            if (importData.settings) dataToSave.settings = importData.settings;
+            if (importData.schemes) dataToSave.schemes = importData.schemes;
+
+            chrome.storage.sync.set(dataToSave, () => {
+              loadData();
+              updateStorageInfo();
+              modal.show({
+                title: "导入成功",
+                body: "配置已成功恢复，所有设置已生效。",
+                confirmText: "好的",
+                onConfirm: () => true,
+              });
+            });
+            return true;
+          },
+        });
+      } catch (err) {
+        modal.show({
+          title: "导入失败",
+          body: `文件解析错误：${err.message}`,
+          confirmText: "知道了",
+          onConfirm: () => true,
+        });
+      }
+    };
+    reader.readAsText(file);
+
+    // 清空 input 以便再次选择同一文件
+    e.target.value = "";
   };
 }
 
