@@ -23,6 +23,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     typoSwitch: document.getElementById("typo-switch"),
     typoCard: document.getElementById("typo-card"),
     loading: document.getElementById("loading-tip"),
+    selectorStd: document.getElementById("selectors-standard"),
+    selectorMono: document.getElementById("selectors-mono"),
+    selectorMath: document.getElementById("selectors-math"),
   };
 
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -69,6 +72,20 @@ document.addEventListener("DOMContentLoaded", async () => {
     updateMappingUI(data, siteData);
     updateTypoSwitchUI();
 
+    // 载入补充选择器
+    const selectors = data.global.selectors || {
+      standard: "",
+      mono: "",
+      math: "",
+    };
+    if (typeof selectors === "string") {
+      if (els.selectorStd) els.selectorStd.value = selectors;
+    } else {
+      if (els.selectorStd) els.selectorStd.value = selectors.standard || "";
+      if (els.selectorMono) els.selectorMono.value = selectors.mono || "";
+      if (els.selectorMath) els.selectorMath.value = selectors.math || "";
+    }
+
     setTimeout(() => sliders.forEach((s) => (s.style.transition = "")), 50);
 
     // 实时保存并广播消息
@@ -99,6 +116,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         data.global.typo = currentTypo;
         updateMappingUI(data, siteData);
       }
+
+      // 保存补充选择器（全局）
+      data.global.selectors = {
+        standard: els.selectorStd ? els.selectorStd.value : "",
+        mono: els.selectorMono ? els.selectorMono.value : "",
+        math: els.selectorMath ? els.selectorMath.value : "",
+      };
 
       data.sites[domain] = siteData;
       chrome.storage.sync.set({ settings: data }, () => {
@@ -152,10 +176,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     function updateTypoSwitchUI() {
       const checkedMode = document.querySelector('input[name="mode"]:checked');
       const isCustom = checkedMode && checkedMode.value === "custom";
-      const activeTypo = (isCustom ? siteData.typo : data.global.typo) || DEFAULT_TYPO;
+      const activeTypo =
+        (isCustom ? siteData.typo : data.global.typo) || DEFAULT_TYPO;
       els.typoSwitch.checked = activeTypo.enabled !== false;
       els.typoCard.style.opacity = els.typoSwitch.checked ? "1" : "0.5";
-      els.typoCard.style.pointerEvents = els.typoSwitch.checked ? "auto" : "none";
+      els.typoCard.style.pointerEvents = els.typoSwitch.checked
+        ? "auto"
+        : "none";
     }
 
     // 事件绑定
@@ -172,9 +199,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     els.typoSwitch.addEventListener("change", () => {
       // 直接根据开关状态更新 UI 外观
       els.typoCard.style.opacity = els.typoSwitch.checked ? "1" : "0.5";
-      els.typoCard.style.pointerEvents = els.typoSwitch.checked ? "auto" : "none";
+      els.typoCard.style.pointerEvents = els.typoSwitch.checked
+        ? "auto"
+        : "none";
       saveData();
     });
+
+    if (els.selectorStd) els.selectorStd.addEventListener("input", saveData);
+    if (els.selectorMono) els.selectorMono.addEventListener("input", saveData);
+    if (els.selectorMath) els.selectorMath.addEventListener("input", saveData);
 
     // 输入框交互增强
     els.selectors.forEach((input) => {
@@ -196,7 +229,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // 点击空白处或标签关闭下拉
     document.addEventListener("click", (e) => {
-      if (!e.target.closest(".setting-item") || e.target.closest(".setting-label")) {
+      if (
+        !e.target.closest(".setting-item") ||
+        e.target.closest(".setting-label")
+      ) {
         document
           .querySelectorAll(".dropdown-list")
           .forEach((d) => (d.style.display = "none"));

@@ -387,7 +387,6 @@
               <!-- JS Rendering -->
             </div>
           </div>
-
           <!-- 黑白名单管理 -->
           <div class="section">
             <div
@@ -475,6 +474,270 @@
               >
                 载入中...
               </div>
+            </div>
+          </div>
+
+          <div class="section" style="position: relative; overflow: hidden">
+            <div
+              style="
+                position: absolute;
+                top: -10px;
+                right: -10px;
+                opacity: 0.03;
+                pointer-events: none;
+              "
+            >
+              <svg
+                width="120"
+                height="120"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
+                <path
+                  d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"
+                />
+              </svg>
+            </div>
+            <h2><i></i>补充 CSS 选择器</h2>
+            <p
+              style="
+                font-size: 13px;
+                color: var(--text-light);
+                margin-bottom: 24px;
+                line-height: 1.6;
+              "
+            >
+              强制将特定页面元素应用到对应的字体预设。每行输入一个 CSS
+              选择器（如
+              <code
+                style="
+                  background: var(--bg);
+                  padding: 2px 4px;
+                  border-radius: 4px;
+                "
+                >.article-body</code
+              >）。
+            </p>
+
+            <div style="display: flex; flex-direction: column; gap: 20px">
+              <div class="form-group" style="margin-bottom: 0">
+                <div
+                  style="
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    margin-bottom: 8px;
+                  "
+                >
+                  <label
+                    class="form-label"
+                    style="
+                      display: flex;
+                      align-items: center;
+                      gap: 8px;
+                      margin-bottom: 0;
+                      color: var(--primary);
+                    "
+                  >
+                    <svg
+                      style="width: 16px; height: 16px"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.5"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <path d="M4 7V4h16v3M9 20h6M12 4v16" />
+                    </svg>
+                    标准字体
+                  </label>
+                  <span
+                    style="
+                      font-size: 10px;
+                      color: var(--text-light);
+                      opacity: 0.6;
+                      font-weight: 600;
+                      text-transform: uppercase;
+                    "
+                    >Standard Font</span
+                  >
+                </div>
+                <textarea
+                  id="selectors-standard"
+                  class="form-input"
+                  style="
+                    height: 64px;
+                    resize: vertical;
+                    font-family:
+                      &quot;Fira Code&quot;, &quot;Consolas&quot;, monospace;
+                    font-size: 12px;
+                    background: var(--bg);
+                    border: 1.5px solid var(--border);
+                    padding: 12px;
+                    line-height: 1.5;
+                  "
+                  placeholder=".content-p, .article-text..."
+                ></textarea>
+              </div>
+
+              <div class="form-group" style="margin-bottom: 0">
+                <div
+                  style="
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    margin-bottom: 8px;
+                  "
+                >
+                  <label
+                    class="form-label"
+                    style="
+                      display: flex;
+                      align-items: center;
+                      gap: 8px;
+                      margin-bottom: 0;
+                      color: #10b981;
+                    "
+                  >
+                    <svg
+                      style="width: 16px; height: 16px"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.5"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <polyline points="16 18 22 12 16 6" />
+                      <polyline points="8 6 2 12 8 18" />
+                    </svg>
+                    代码 / 等宽
+                  </label>
+                  <span
+                    style="
+                      font-size: 10px;
+                      color: var(--text-light);
+                      opacity: 0.6;
+                      font-weight: 600;
+                      text-transform: uppercase;
+                    "
+                    >Monospace</span
+                  >
+                </div>
+                <textarea
+                  id="selectors-mono"
+                  class="form-input"
+                  style="
+                    height: 64px;
+                    resize: vertical;
+                    font-family:
+                      &quot;Fira Code&quot;, &quot;Consolas&quot;, monospace;
+                    font-size: 12px;
+                    background: var(--bg);
+                    border: 1.5px solid var(--border);
+                    padding: 12px;
+                    line-height: 1.5;
+                  "
+                  placeholder="[class*='code'], .mono-font..."
+                ></textarea>
+              </div>
+
+              <div class="form-group" style="margin-bottom: 0">
+                <div
+                  style="
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    margin-bottom: 8px;
+                  "
+                >
+                  <label
+                    class="form-label"
+                    style="
+                      display: flex;
+                      align-items: center;
+                      gap: 8px;
+                      margin-bottom: 0;
+                      color: #f59e0b;
+                    "
+                  >
+                    <svg
+                      style="width: 16px; height: 16px"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.5"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                      <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                    数学公式
+                  </label>
+                  <span
+                    style="
+                      font-size: 10px;
+                      color: var(--text-light);
+                      opacity: 0.6;
+                      font-weight: 600;
+                      text-transform: uppercase;
+                    "
+                    >Math Fonts</span
+                  >
+                </div>
+                <textarea
+                  id="selectors-math"
+                  class="form-input"
+                  style="
+                    height: 64px;
+                    resize: vertical;
+                    font-family:
+                      &quot;Fira Code&quot;, &quot;Consolas&quot;, monospace;
+                    font-size: 12px;
+                    background: var(--bg);
+                    border: 1.5px solid var(--border);
+                    padding: 12px;
+                    line-height: 1.5;
+                  "
+                  placeholder=".Katex-display, .math-eqn..."
+                ></textarea>
+              </div>
+            </div>
+
+            <div
+              style="margin-top: 32px; display: flex; justify-content: flex-end"
+            >
+              <button
+                id="save-selectors"
+                class="btn btn-primary"
+                style="
+                  padding: 12px 28px;
+                  border-radius: 14px;
+                  box-shadow: 0 4px 14px var(--primary-soft);
+                  display: flex;
+                  align-items: center;
+                  gap: 10px;
+                "
+              >
+                <svg
+                  style="width: 16px; height: 16px"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path
+                    d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"
+                  />
+                  <polyline points="17 21 17 13 7 13 7 21" />
+                  <polyline points="7 3 7 8 15 8" />
+                </svg>
+                保存所有配置记录
+              </button>
             </div>
           </div>
         </div>

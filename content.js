@@ -23,27 +23,52 @@ function updateContentStyles(settings) {
   const isCustom = site?.mode === "custom";
   const mapping = isCustom ? site.mapping : global.mapping;
   const typo = (isCustom ? site.typo : global.typo) || {
-    enabled: true, lineHeight: "1.6", fontSize: "100", fontWeight: "0"
+    enabled: true,
+    lineHeight: "1.6",
+    fontSize: "100",
+    fontWeight: "0",
   };
 
-  applyStyles(mapping, typo);
+  const selectors = global.selectors || { standard: "", mono: "", math: "" };
+  applyStyles(mapping, typo, selectors);
 }
 
 function removeStyles() {
   document.getElementById("pure-read-injector")?.remove();
 }
 
-function applyStyles(mapping, typo) {
-  const font = (name, fallback) => name ? `font-family: "${name}", ${fallback} !important;` : "";
+function applyStyles(mapping, typo, selectors) {
+  const font = (name, fallback) =>
+    name ? `font-family: "${name}", ${fallback} !important;` : "";
   const scale = typo.fontSize / 100;
   const typoOn = typo.enabled !== false;
+
+  const getExtra = (key) => {
+    const raw =
+      typeof selectors === "string"
+        ? key === "standard"
+          ? selectors
+          : ""
+        : selectors[key];
+    if (!raw) return "";
+    return (
+      ", " +
+      raw
+        .split("\n")
+        .map((s) => s.trim())
+        .filter((s) => s)
+        .join(", ")
+    );
+  };
 
   // 排除规则
   const exclude = {
     icon: ':not(.fa):not(.fas):not(.far):not(.fab):not(.glyphicon):not(.iconfont):not([class*="icon"]):not(i)',
     code: ':not(pre):not(pre *):not(code):not(code *):not(kbd):not(samp):not([class*="pl-"]):not([class*="blob-code"]):not([class*="highlight"])',
-    media: ':not(video):not(iframe):not(canvas):not(svg):not(svg *):not(img):not(audio)',
-    player: ':not([class*="player"]):not([class*="Player"]):not([class*="video"]):not([class*="Video"])'
+    media:
+      ":not(video):not(iframe):not(canvas):not(svg):not(svg *):not(img):not(audio)",
+    player:
+      ':not([class*="player"]):not([class*="Player"]):not([class*="video"]):not([class*="Video"])',
   };
 
   const css = `
@@ -53,11 +78,13 @@ function applyStyles(mapping, typo) {
     }
 
     /* 标准字体 */
-    body *${exclude.code}${exclude.media}${exclude.player}${exclude.icon}:not(math):not(.katex) {
+    body *${exclude.code}${exclude.media}${exclude.player}${exclude.icon}:not(math):not(.katex)${getExtra("standard")} {
       ${font(mapping.standard, "sans-serif")}
     }
 
-    ${typoOn ? `
+    ${
+      typoOn
+        ? `
     /* 行高 */
     p, span, div${exclude.player}:not([class*="danmaku"]):not([class*="bpx"]),
     li, td, th, label, a, h1, h2, h3, h4, h5, h6,
@@ -66,18 +93,28 @@ function applyStyles(mapping, typo) {
     }
 
     /* 字号缩放 */
-    ${scale !== 1 ? `
+    ${
+      scale !== 1
+        ? `
     p, span${exclude.player}:not([class*="time"]):not([class*="duration"]),
     li, td, th, article, blockquote, figcaption {
       font-size: calc(1em * var(--pr-fs)) !important;
-    }` : ""}
+    }`
+        : ""
+    }
 
     /* 字重补偿 */
-    ${typo.fontWeight != "0" ? `
+    ${
+      typo.fontWeight != "0"
+        ? `
     body *:not([class*="icon"]):not(i)${exclude.media} {
       -webkit-text-stroke-width: ${Math.max(0, typo.fontWeight / 500)}px;
-    }` : ""}
-    ` : ""}
+    }`
+        : ""
+    }
+    `
+        : ""
+    }
 
     /* 代码块 */
     body pre, body code, body kbd, body samp,
@@ -86,14 +123,14 @@ function applyStyles(mapping, typo) {
     [class*="pl-"], .blob-code-inner, .blob-code-inner *,
     div.highlight pre, div.highlight pre *,
     pre[class*="language"], pre[class*="language"] *,
-    code[class*="language"], code[class*="language"] * {
+    code[class*="language"], code[class*="language"] *${getExtra("mono")} {
       ${font(mapping.mono, "monospace")}
       line-height: 1.4 !important;
     }
 
     /* 数学公式 */
     body math, body math *, body .mjx-chtml, body .mjx-chtml *,
-    body .katex, body .katex * {
+    body .katex, body .katex *${getExtra("math")} {
       ${font(mapping.math, "serif")}
     }
   `;

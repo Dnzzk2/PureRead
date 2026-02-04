@@ -702,11 +702,11 @@
       </div>
     </div>
 
-    <div class="section-title" style="justify-content: space-between;">
-      <div style="display: flex; align-items: center; gap: 8px;">
+    <div class="section-title" style="justify-content: space-between">
+      <div style="display: flex; align-items: center; gap: 8px">
         <i></i><span>排版细节 (<span id="mapping-label">全局</span>)</span>
       </div>
-      <label class="switch" style="transform: scale(0.85);"
+      <label class="switch" style="transform: scale(0.85)"
         ><input type="checkbox" id="typo-switch" checked /><span
           class="slider"
         ></span
@@ -787,6 +787,169 @@
         /><button id="btn-save-preset" class="btn-save">保存</button>
       </div>
     </div>
+    <div style="margin-top: 16px">
+      <details
+        class="selector-details"
+        style="
+          cursor: pointer;
+          font-size: 12px;
+          color: var(--text-light);
+          border: 1px solid var(--border);
+          border-radius: 12px;
+          transition: var(--transition);
+        "
+      >
+        <summary
+          style="
+            padding: 10px 14px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            list-style: none;
+          "
+        >
+          <div style="display: flex; align-items: center; gap: 8px">
+            <svg
+              style="width: 14px; height: 14px; color: var(--primary)"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+            >
+              <path
+                d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"
+              />
+            </svg>
+            <span>补充 CSS 选择器</span>
+          </div>
+          <svg
+            class="chevron"
+            style="width: 12px; height: 12px; transition: 0.3s"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="3"
+          >
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </summary>
+        <div
+          style="
+            padding: 0 14px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            cursor: default;
+          "
+        >
+          <div style="border-top: 1px solid var(--border); padding-top: 12px">
+            <div
+              style="
+                font-size: 10px;
+                font-weight: 700;
+                opacity: 0.5;
+                margin-bottom: 6px;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+              "
+            >
+              标准字体
+            </div>
+            <textarea
+              id="selectors-standard"
+              class="preset-input"
+              style="
+                width: 100%;
+                height: 42px;
+                resize: vertical;
+                font-family: &quot;Fira Code&quot;, monospace;
+                font-size: 11px;
+                box-sizing: border-box;
+                display: block;
+                background: var(--box-bg);
+                padding: 8px;
+              "
+              placeholder=".article-content"
+            ></textarea>
+          </div>
+          <div>
+            <div
+              style="
+                font-size: 10px;
+                font-weight: 700;
+                opacity: 0.5;
+                margin-bottom: 6px;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+              "
+            >
+              代码/等宽
+            </div>
+            <textarea
+              id="selectors-mono"
+              class="preset-input"
+              style="
+                width: 100%;
+                height: 42px;
+                resize: vertical;
+                font-family: &quot;Fira Code&quot;, monospace;
+                font-size: 11px;
+                box-sizing: border-box;
+                display: block;
+                background: var(--box-bg);
+                padding: 8px;
+              "
+              placeholder=".code-block"
+            ></textarea>
+          </div>
+          <div>
+            <div
+              style="
+                font-size: 10px;
+                font-weight: 700;
+                opacity: 0.5;
+                margin-bottom: 6px;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+              "
+            >
+              数学公式
+            </div>
+            <textarea
+              id="selectors-math"
+              class="preset-input"
+              style="
+                width: 100%;
+                height: 42px;
+                resize: vertical;
+                font-family: &quot;Fira Code&quot;, monospace;
+                font-size: 11px;
+                box-sizing: border-box;
+                display: block;
+                background: var(--box-bg);
+                padding: 8px;
+              "
+              placeholder=".formula"
+            ></textarea>
+          </div>
+        </div>
+      </details>
+    </div>
+
+    <style>
+      .selector-details summary::-webkit-details-marker {
+        display: none;
+      }
+      .selector-details[open] {
+        border-color: var(--primary);
+        box-shadow: var(--shadow-focus);
+      }
+      .selector-details[open] .chevron {
+        transform: rotate(180deg);
+        color: var(--primary);
+      }
+    </style>
 
     <script src="popup.js"></script>
   </body>

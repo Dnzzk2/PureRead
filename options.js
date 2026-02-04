@@ -14,9 +14,17 @@ async function init() {
 // 加载系统字体
 async function loadSystemFonts() {
   const FALLBACK_FONTS = [
-    "Microsoft YaHei", "SimSun", "Arial", "Consolas",
-    "PingFang SC", "Hiragino Sans GB", "Source Han Sans",
-    "Noto Sans SC", "Roboto", "Inter", "Fira Code"
+    "Microsoft YaHei",
+    "SimSun",
+    "Arial",
+    "Consolas",
+    "PingFang SC",
+    "Hiragino Sans GB",
+    "Source Han Sans",
+    "Noto Sans SC",
+    "Roboto",
+    "Inter",
+    "Fira Code",
   ];
 
   try {
@@ -42,6 +50,22 @@ function loadData() {
     allSchemes = res.schemes || [];
     renderSchemes(allSchemes);
     renderSites(allSettings.sites);
+
+    // 加载补充选择器
+    const selectors = allSettings.global?.selectors || {
+      standard: "",
+      mono: "",
+      math: "",
+    };
+    if (typeof selectors === "string") {
+      // 兼容旧版
+      document.getElementById("selectors-standard").value = selectors;
+    } else {
+      document.getElementById("selectors-standard").value =
+        selectors.standard || "";
+      document.getElementById("selectors-mono").value = selectors.mono || "";
+      document.getElementById("selectors-math").value = selectors.math || "";
+    }
   });
 }
 
@@ -135,7 +159,7 @@ function renderSchemes(schemes) {
                 <td style="padding: 12px 0; font-size: 14px; font-weight: 600;">标准字体</td>
                 <td style="padding: 12px 0;">
                   <div class="font-input-wrapper">
-                    <input type="text" id="edit-std" class="form-input font-edit-input" style="margin: 0;" value="${s.mapping.standard || ''}" placeholder="输入或选择字体" autocomplete="off">
+                    <input type="text" id="edit-std" class="form-input font-edit-input" style="margin: 0;" value="${s.mapping.standard || ""}" placeholder="输入或选择字体" autocomplete="off">
                     <div class="font-dropdown" id="dropdown-std"></div>
                   </div>
                 </td>
@@ -144,7 +168,7 @@ function renderSchemes(schemes) {
                 <td style="padding: 12px 0; font-size: 14px; font-weight: 600;">等宽字体</td>
                 <td style="padding: 12px 0;">
                   <div class="font-input-wrapper">
-                    <input type="text" id="edit-mono" class="form-input font-edit-input" style="margin: 0;" value="${s.mapping.mono || ''}" placeholder="输入或选择字体" autocomplete="off">
+                    <input type="text" id="edit-mono" class="form-input font-edit-input" style="margin: 0;" value="${s.mapping.mono || ""}" placeholder="输入或选择字体" autocomplete="off">
                     <div class="font-dropdown" id="dropdown-mono"></div>
                   </div>
                 </td>
@@ -153,7 +177,7 @@ function renderSchemes(schemes) {
                 <td style="padding: 12px 0; font-size: 14px; font-weight: 600;">数学公式</td>
                 <td style="padding: 12px 0;">
                   <div class="font-input-wrapper">
-                    <input type="text" id="edit-math" class="form-input font-edit-input" style="margin: 0;" value="${s.mapping.math || ''}" placeholder="输入或选择字体" autocomplete="off">
+                    <input type="text" id="edit-math" class="form-input font-edit-input" style="margin: 0;" value="${s.mapping.math || ""}" placeholder="输入或选择字体" autocomplete="off">
                     <div class="font-dropdown" id="dropdown-math"></div>
                   </div>
                 </td>
@@ -276,58 +300,84 @@ function bindGlobalEvents() {
       },
     });
   };
+
+  // 保存补充选择器
+  document.getElementById("save-selectors").onclick = () => {
+    const selectors = {
+      standard: document.getElementById("selectors-standard").value,
+      mono: document.getElementById("selectors-mono").value,
+      math: document.getElementById("selectors-math").value,
+    };
+    if (!allSettings.global) allSettings.global = {};
+    allSettings.global.selectors = selectors;
+
+    chrome.storage.sync.set({ settings: allSettings }, () => {
+      updateStorageInfo();
+      // 发送通知
+      modal.show({
+        title: "保存成功",
+        body: "补充选择器已保存，刷新页面后生效。",
+        confirmText: "好的",
+        onConfirm: () => true,
+      });
+    });
+  };
 }
 
 // 绑定字体下拉选择事件
 function bindFontDropdowns() {
-  const inputs = document.querySelectorAll('.font-edit-input');
+  const inputs = document.querySelectorAll(".font-edit-input");
 
-  inputs.forEach(input => {
-    const dropdownId = 'dropdown-' + input.id.replace('edit-', '');
+  inputs.forEach((input) => {
+    const dropdownId = "dropdown-" + input.id.replace("edit-", "");
     const dropdown = document.getElementById(dropdownId);
     if (!dropdown) return;
 
     // 渲染下拉列表
     const renderDropdown = (filterText) => {
-      dropdown.innerHTML = '';
-      const filtered = allFonts.filter(f =>
-        f.toLowerCase().includes(filterText.toLowerCase()) || filterText === ''
-      ).slice(0, 50); // 限制显示数量
+      dropdown.innerHTML = "";
+      const filtered = allFonts
+        .filter(
+          (f) =>
+            f.toLowerCase().includes(filterText.toLowerCase()) ||
+            filterText === "",
+        )
+        .slice(0, 50); // 限制显示数量
 
       if (filtered.length === 0) {
-        dropdown.style.display = 'none';
+        dropdown.style.display = "none";
         return;
       }
 
-      filtered.forEach(font => {
-        const item = document.createElement('div');
-        item.className = 'font-dropdown-item';
+      filtered.forEach((font) => {
+        const item = document.createElement("div");
+        item.className = "font-dropdown-item";
         item.innerText = font;
         item.style.fontFamily = `"${font}", sans-serif`;
         item.onmousedown = (e) => {
           e.preventDefault();
           input.value = font;
-          dropdown.style.display = 'none';
+          dropdown.style.display = "none";
         };
         dropdown.appendChild(item);
       });
-      dropdown.style.display = 'block';
+      dropdown.style.display = "block";
     };
 
     // 输入时过滤
-    input.addEventListener('input', () => {
+    input.addEventListener("input", () => {
       renderDropdown(input.value);
     });
 
     // 聚焦时显示
-    input.addEventListener('focus', () => {
+    input.addEventListener("focus", () => {
       renderDropdown(input.value);
     });
 
     // 失焦时隐藏
-    input.addEventListener('blur', () => {
+    input.addEventListener("blur", () => {
       setTimeout(() => {
-        dropdown.style.display = 'none';
+        dropdown.style.display = "none";
       }, 150);
     });
   });
