@@ -20,8 +20,16 @@ document.addEventListener("DOMContentLoaded", async () => {
   // 安全获取当前域名
   let domain = "";
   try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (tab && tab.url && !tab.url.startsWith("chrome://") && !tab.url.startsWith("edge://")) {
+    const [tab] = await chrome.tabs.query({
+      active: true,
+      currentWindow: true,
+    });
+    if (
+      tab &&
+      tab.url &&
+      !tab.url.startsWith("chrome://") &&
+      !tab.url.startsWith("edge://")
+    ) {
       domain = new URL(tab.url).hostname;
     }
   } catch (e) {
@@ -45,7 +53,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   // 获取 tab 用于后续发送消息
   let tab = null;
   try {
-    const [currentTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const [currentTab] = await chrome.tabs.query({
+      active: true,
+      currentWindow: true,
+    });
     tab = currentTab;
   } catch (e) {
     console.error("[PureRead] 获取 tab 失败:", e.message);
@@ -59,7 +70,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   els.globalSwitch.checked = isGlobalOn;
 
   // 页面开关：如果 siteData.on 有值则用，否则跟随总开关
-  els.siteSwitch.checked = (typeof siteData.on === "boolean") ? siteData.on : isGlobalOn;
+  els.siteSwitch.checked =
+    typeof siteData.on === "boolean" ? siteData.on : isGlobalOn;
   const activeModeInput = document.querySelector(
     `input[name="mode"][value="${siteData.mode}"]`,
   );
@@ -150,7 +162,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   // 防抖保存（用于滑块拖动、输入框输入等高频操作）
   const saveDataDebounced = Utils.debounce(_saveDataCore, 150);
 
-
   const openSettingsBtn = document.getElementById("open-settings");
   if (openSettingsBtn) {
     openSettingsBtn.onclick = () => {
@@ -185,8 +196,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const el = document.getElementById(labelMap[key]);
     if (el) {
       if (key === "fontSize") el.innerText = val + "%";
-      else if (key === "fontWeight")
-        el.innerText = (val > 0 ? "+" : "") + val;
+      else if (key === "fontWeight") el.innerText = (val > 0 ? "+" : "") + val;
       else el.innerText = val;
     }
   }
@@ -198,9 +208,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       (isCustom ? siteData.typo : data.global.typo) || DEFAULT_TYPO;
     els.typoSwitch.checked = activeTypo.enabled !== false;
     els.typoCard.style.opacity = els.typoSwitch.checked ? "1" : "0.5";
-    els.typoCard.style.pointerEvents = els.typoSwitch.checked
-      ? "auto"
-      : "none";
+    els.typoCard.style.pointerEvents = els.typoSwitch.checked ? "auto" : "none";
   }
 
   // 事件绑定
@@ -225,16 +233,17 @@ document.addEventListener("DOMContentLoaded", async () => {
   els.typoRanges.forEach((r) => r.addEventListener("input", saveDataDebounced));
   els.typoSwitch.addEventListener("change", () => {
     els.typoCard.style.opacity = els.typoSwitch.checked ? "1" : "0.5";
-    els.typoCard.style.pointerEvents = els.typoSwitch.checked
-      ? "auto"
-      : "none";
+    els.typoCard.style.pointerEvents = els.typoSwitch.checked ? "auto" : "none";
     saveData(); // 开关用立即保存
   });
 
   // 选择器输入框使用防抖处理
-  if (els.selectorStd) els.selectorStd.addEventListener("input", saveDataDebounced);
-  if (els.selectorMono) els.selectorMono.addEventListener("input", saveDataDebounced);
-  if (els.selectorMath) els.selectorMath.addEventListener("input", saveDataDebounced);
+  if (els.selectorStd)
+    els.selectorStd.addEventListener("input", saveDataDebounced);
+  if (els.selectorMono)
+    els.selectorMono.addEventListener("input", saveDataDebounced);
+  if (els.selectorMath)
+    els.selectorMath.addEventListener("input", saveDataDebounced);
 
   // 输入框交互增强
   els.selectors.forEach((input) => {
@@ -315,8 +324,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const renderSchemes = (schemes) => {
     presetContainer.innerHTML = "";
     if (schemes.length === 0) {
-      presetContainer.innerHTML =
-        '<div class="empty-tip">暂无保存的方案</div>';
+      presetContainer.innerHTML = '<div class="empty-tip">暂无保存的方案</div>';
       return;
     }
 
@@ -355,12 +363,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     saveData();
 
     if (itemElement) {
-      document.querySelectorAll('.preset-item.applied').forEach(el => {
-        el.classList.remove('applied');
+      document.querySelectorAll(".preset-item.applied").forEach((el) => {
+        el.classList.remove("applied");
       });
-      itemElement.classList.add('applied');
+      itemElement.classList.add("applied");
       setTimeout(() => {
-        itemElement.classList.remove('applied');
+        itemElement.classList.remove("applied");
       }, 1500);
     }
   };
@@ -403,8 +411,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     listEl.innerHTML = "";
     const filtered = allFonts.filter(
       (f) =>
-        f.toLowerCase().includes(filterText.toLowerCase()) ||
-        filterText === "",
+        f.toLowerCase().includes(filterText.toLowerCase()) || filterText === "",
     );
 
     if (filtered.length === 0) {
