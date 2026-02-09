@@ -26,11 +26,22 @@ const DEFAULT_SELECTORS = {
   math: "",
 };
 
+// 新功能默认配置
+const DEFAULT_FEATURES = {
+  progressBar: {
+    enabled: false,
+    color: "#10b981", // 翡翠绿
+  },
+  // focusMode 已改为站点级配置，存储在 sites[domain].focusMode
+  // 保留此字段仅用于向后兼容
+};
+
 const DEFAULT_GLOBAL = {
   on: true,
   mapping: { ...DEFAULT_MAPPING },
   typo: { ...DEFAULT_TYPO },
   selectors: { ...DEFAULT_SELECTORS },
+  features: JSON.parse(JSON.stringify(DEFAULT_FEATURES)),
 };
 
 const DEFAULT_SETTINGS = {
@@ -53,7 +64,10 @@ const Storage = {
       try {
         chrome.storage.sync.get(keys, (result) => {
           if (chrome.runtime.lastError) {
-            console.error("[PureRead] 存储读取失败:", chrome.runtime.lastError.message);
+            console.error(
+              "[PureRead] 存储读取失败:",
+              chrome.runtime.lastError.message,
+            );
             resolve({});
             return;
           }
@@ -76,7 +90,10 @@ const Storage = {
       try {
         chrome.storage.sync.set(data, () => {
           if (chrome.runtime.lastError) {
-            console.error("[PureRead] 存储写入失败:", chrome.runtime.lastError.message);
+            console.error(
+              "[PureRead] 存储写入失败:",
+              chrome.runtime.lastError.message,
+            );
             resolve(false);
             return;
           }
@@ -99,7 +116,10 @@ const Storage = {
       try {
         chrome.storage.local.get(keys, (result) => {
           if (chrome.runtime.lastError) {
-            console.error("[PureRead] 本地存储读取失败:", chrome.runtime.lastError.message);
+            console.error(
+              "[PureRead] 本地存储读取失败:",
+              chrome.runtime.lastError.message,
+            );
             resolve({});
             return;
           }
@@ -159,7 +179,10 @@ const DataValidator = {
     if (typeof settings.global.on !== "boolean") {
       settings.global.on = true;
     }
-    if (!settings.global.mapping || typeof settings.global.mapping !== "object") {
+    if (
+      !settings.global.mapping ||
+      typeof settings.global.mapping !== "object"
+    ) {
       settings.global.mapping = { ...DEFAULT_MAPPING };
     }
     if (!settings.global.typo || typeof settings.global.typo !== "object") {
@@ -167,6 +190,9 @@ const DataValidator = {
     }
     if (!settings.global.selectors) {
       settings.global.selectors = { ...DEFAULT_SELECTORS };
+    }
+    if (!settings.global.features) {
+      settings.global.features = JSON.parse(JSON.stringify(DEFAULT_FEATURES));
     }
 
     // 确保 sites 存在
@@ -292,7 +318,10 @@ const FontLoader = {
         return new Promise((resolve) => {
           chrome.fontSettings.getFontList((fontList) => {
             if (chrome.runtime.lastError) {
-              console.warn("[PureRead] 字体 API 错误:", chrome.runtime.lastError.message);
+              console.warn(
+                "[PureRead] 字体 API 错误:",
+                chrome.runtime.lastError.message,
+              );
               resolve(this.FALLBACK_FONTS);
               return;
             }
@@ -353,7 +382,10 @@ const Utils = {
    */
   async getCurrentDomain() {
     try {
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      const [tab] = await chrome.tabs.query({
+        active: true,
+        currentWindow: true,
+      });
       if (tab && tab.url) {
         return new URL(tab.url).hostname;
       }

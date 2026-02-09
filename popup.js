@@ -15,78 +15,128 @@ document.addEventListener("DOMContentLoaded", async () => {
     selectorStd: document.getElementById("selectors-standard"),
     selectorMono: document.getElementById("selectors-mono"),
     selectorMath: document.getElementById("selectors-math"),
+    // 新功能
+    progressSwitch: document.getElementById("progress-switch"),
+    progressColor: document.getElementById("progress-color"),
+    focusSwitch: document.getElementById("focus-switch"),
+    darkSwitch: document.getElementById("dark-switch"),
+    readtimeSwitch: document.getElementById("readtime-switch"),
+    shortcutsSwitch: document.getElementById("shortcuts-enabled"),
+    shortcutsConfigBtn: document.getElementById("configure-shortcuts"),
   };
 
-  // 安全获取当前域名
+  // 核心变量
   let domain = "";
-  try {
-    const [tab] = await chrome.tabs.query({
-      active: true,
-      currentWindow: true,
-    });
-    if (
-      tab &&
-      tab.url &&
-      !tab.url.startsWith("chrome://") &&
-      !tab.url.startsWith("edge://")
-    ) {
-      domain = new URL(tab.url).hostname;
-    }
-  } catch (e) {
-    console.error("[PureRead] 获取域名失败:", e.message);
-  }
-  els.domainDisplay.innerText = domain || "不支持的页面";
-
-  let allFonts = []; // 全局字体列表
-
-  // 使用公共模块加载字体
-  allFonts = await FontLoader.load();
-  els.loading.style.display = "none";
-
-  // 使用公共模块读取存储
-  const result = await Storage.get(["settings"]);
-  let data = DataValidator.ensureSettings(result.settings);
-
-  // 初始化时获取站点数据，但不立即存入 data.sites，除非用户修改
-  const siteData = DataValidator.ensureSiteData(data.sites[domain]);
-
-  // 获取 tab 用于后续发送消息
+  let data = {};
+  let siteData = {};
   let tab = null;
-  try {
-    const [currentTab] = await chrome.tabs.query({
-      active: true,
-      currentWindow: true,
-    });
-    tab = currentTab;
-  } catch (e) {
-    console.error("[PureRead] 获取 tab 失败:", e.message);
-  }
+  let allFonts = [];
+  let skipNextSync = false;
+  let isRefreshing = false;
 
-  // 初始渲染
-  const sliders = document.querySelectorAll(".slider, .selection-bar");
-  sliders.forEach((s) => (s.style.transition = "none"));
+  // 1. 初始化流程
+  const init = async () => {
+    // 获取域名
+    try {
+      const [currentTab] = await chrome.tabs.query({
+        active: true,
+        currentWindow: true,
+      });
+      if (
+        currentTab &&
+        currentTab.url &&
+        !currentTab.url.startsWith("chrome://") &&
+        !currentTab.url.startsWith("edge://")
+      ) {
+        domain = new URL(currentTab.url).hostname;
+      }
+      tab = currentTab;
+    } catch (e) {
+      console.error("[PureRead] 获取环境信息失败:", e.message);
+    }
+    els.domainDisplay.innerText = domain || "不支持的页面";
 
-  const isGlobalOn = data.global.on !== false;
-  els.globalSwitch.checked = isGlobalOn;
+    // 加载字体
+    allFonts = await FontLoader.load();
+    els.loading.style.display = "none";
 
-  // 页面开关：如果 siteData.on 有值则用，否则跟随总开关
-  els.siteSwitch.checked =
-    typeof siteData.on === "boolean" ? siteData.on : isGlobalOn;
-  const activeModeInput = document.querySelector(
-    `input[name="mode"][value="${siteData.mode}"]`,
-  );
-  if (activeModeInput) activeModeInput.checked = true;
+    // 首次同步 UI
+    await refreshUI(true);
+  };
 
-  updateMappingUI(data, siteData);
-  updateTypoSwitchUI();
+  // 2. 实时同步 UI 函数
+  const refreshUI = async (isInitial = false) => {
+    if (isRefreshing) return;
+    isRefreshing = true;
 
-  // 载入补充选择器
-  const selectors = DataValidator.ensureSelectors(data.global.selectors);
-  if (els.selectorStd) els.selectorStd.value = selectors.standard || "";
-  if (els.selectorMono) els.selectorMono.value = selectors.mono || "";
-  if (els.selectorMath) els.selectorMath.value = selectors.math || "";
+    try {
+      const result = await Storage.get(["settings"]);
+      data = DataValidator.ensureSettings(result.settings);
+      siteData = DataValidator.ensureSiteData(data.sites[domain]);
 
-  setTimeout(() => sliders.forEach((s) => (s.style.transition = "")), 50);
+      const sliders = document.querySelectorAll(".slider, .selection-bar");
+      if (isInitial) sliders.forEach((s) => (s.style.transition = "none"));
+
+      // 同步开关状态
+      const isGlobalOn = data.global.on !== false;
+      els.globalSwitch.checked = isGlobalOn;
+      els.siteSwitch.checked =
+        typeof siteData.on === "boolean" ? siteData.on : isGlobalOn;
+
+      const activeModeInput = document.querySelector(
+        `input[name="mode"][value="${siteData.mode}"]`,
+      );
+      if (activeModeInput) activeModeInput.checked = true;
+
+      // 同步映射与样式
+      updateMappingUI(data, siteData);
+      updateTypoSwitchUI();
+
+      // 同步补充选择器
+      const selectors = DataValidator.ensureSelectors(data.global.selectors);
+      if (els.selectorStd) els.selectorStd.value = selectors.standard || "";
+      if (els.selectorMono) els.selectorMono.value = selectors.mono || "";
+      if (els.selectorMath) els.selectorMath.value = selectors.math || "";
+
+      // 同步阅读增强
+      const features = data.global.features || {};
+      const progressBar = features.progressBar || {
+        enabled: false,
+        color: "#10b981",
+      };
+      if (els.progressSwitch) els.progressSwitch.checked = progressBar.enabled;
+      if (els.progressColor)
+        els.progressColor.value = progressBar.color || "#10b981";
+      if (els.focusSwitch)
+        els.focusSwitch.checked = siteData.focusMode ?? false;
+      if (els.darkSwitch) els.darkSwitch.checked = features.forceDark ?? false;
+      if (els.readtimeSwitch)
+        els.readtimeSwitch.checked = features.readingTime ?? false;
+
+      // 同步快捷键
+      const shortcutsEnabled = data.global.shortcutsEnabled !== false;
+      if (els.shortcutsSwitch) {
+        els.shortcutsSwitch.checked = shortcutsEnabled;
+        const listContainer = document.getElementById(
+          "shortcuts-list-container",
+        );
+        if (listContainer) {
+          listContainer.style.opacity = shortcutsEnabled ? "1" : "0.5";
+          listContainer.style.pointerEvents = shortcutsEnabled
+            ? "auto"
+            : "none";
+        }
+      }
+
+      if (isInitial) {
+        setTimeout(() => sliders.forEach((s) => (s.style.transition = "")), 50);
+      }
+    } finally {
+      isRefreshing = false;
+    }
+  };
+
+  await init();
 
   // 核心保存逻辑
   const _saveDataCore = async () => {
@@ -142,12 +192,50 @@ document.addEventListener("DOMContentLoaded", async () => {
       math: els.selectorMath ? els.selectorMath.value : "",
     };
 
+    // 保存阅读增强功能状态
+    if (!data.global.features) data.global.features = {};
+    // 进度条：全局配置
+    data.global.features.progressBar = {
+      enabled: els.progressSwitch ? els.progressSwitch.checked : false,
+      color: els.progressColor ? els.progressColor.value : "#10b981",
+    };
+
+    // 专注模式：站点级配置
+    if (domain && els.focusSwitch) {
+      if (!data.sites[domain]) data.sites[domain] = {};
+      data.sites[domain].focusMode = els.focusSwitch.checked;
+      // 同步更新 siteData 引用
+      siteData.focusMode = els.focusSwitch.checked;
+    }
+
+    // 暗色模式：全局配置
+    data.global.features.forceDark = els.darkSwitch
+      ? els.darkSwitch.checked
+      : false;
+
+    // 阅读时间：全局配置
+    data.global.features.readingTime = els.readtimeSwitch
+      ? els.readtimeSwitch.checked
+      : false;
+
+    // 快捷键开关
+    data.global.shortcutsEnabled = els.shortcutsSwitch
+      ? els.shortcutsSwitch.checked
+      : true;
+
     // 使用公共模块保存
+    skipNextSync = true;
     const success = await Storage.set({ settings: data });
     if (success && tab && tab.id) {
       try {
+        // 发送样式更新
         await chrome.tabs.sendMessage(tab.id, {
           action: "updateStyles",
+          settings: data,
+        });
+        // 发送功能更新
+        await chrome.tabs.sendMessage(tab.id, {
+          action: "updateFeatures",
           settings: data,
         });
       } catch (e) {
@@ -244,6 +332,52 @@ document.addEventListener("DOMContentLoaded", async () => {
     els.selectorMono.addEventListener("input", saveDataDebounced);
   if (els.selectorMath)
     els.selectorMath.addEventListener("input", saveDataDebounced);
+
+  // 阅读增强功能事件绑定
+  if (els.progressSwitch) {
+    els.progressSwitch.addEventListener("change", saveData);
+  }
+  if (els.progressColor) {
+    els.progressColor.addEventListener("input", saveDataDebounced);
+  }
+  if (els.focusSwitch) {
+    els.focusSwitch.addEventListener("change", saveData);
+  }
+  if (els.darkSwitch) {
+    els.darkSwitch.addEventListener("change", saveData);
+  }
+  if (els.readtimeSwitch) {
+    els.readtimeSwitch.addEventListener("change", saveData);
+  }
+
+  // 快捷键事件监听
+  if (els.shortcutsSwitch) {
+    els.shortcutsSwitch.addEventListener("change", () => {
+      const isEnabled = els.shortcutsSwitch.checked;
+      const listContainer = document.getElementById("shortcuts-list-container");
+      if (listContainer) {
+        listContainer.style.opacity = isEnabled ? "1" : "0.5";
+        listContainer.style.pointerEvents = isEnabled ? "auto" : "none";
+      }
+      saveData();
+    });
+  }
+  if (els.shortcutsConfigBtn) {
+    els.shortcutsConfigBtn.addEventListener("click", () => {
+      chrome.tabs.create({ url: "chrome://extensions/shortcuts" });
+    });
+  }
+
+  // 3. 监听外部存储变化（如快捷键触发、高级设置修改等）
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === "sync" && changes.settings) {
+      if (skipNextSync) {
+        skipNextSync = false;
+        return;
+      }
+      refreshUI();
+    }
+  });
 
   // 输入框交互增强
   els.selectors.forEach((input) => {

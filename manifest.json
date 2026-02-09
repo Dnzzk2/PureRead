@@ -1,8 +1,8 @@
 {
     "manifest_version": 3,
     "name": "PureRead",
-    "version": "0.0.1",
-    "description": "强制修改网页字体，以达到理想的阅读效果。",
+    "version": "0.1.0",
+    "description": "提升网页阅读体验：字体替换、排版调节、阅读进度、专注模式",
     "permissions": [
         "storage",
         "activeTab",
@@ -10,6 +10,9 @@
     ],
     "action": {
         "default_popup": "popup.html"
+    },
+    "background": {
+        "service_worker": "background.js"
     },
     "options_page": "options.html",
     "content_scripts": [
@@ -23,6 +26,36 @@
             "run_at": "document_start"
         }
     ],
+    "commands": {
+        "toggle-extension": {
+            "suggested_key": {
+                "default": "Alt+Shift+P",
+                "mac": "Alt+Shift+P"
+            },
+            "description": "开关当前站点"
+        },
+        "toggle-focus-mode": {
+            "suggested_key": {
+                "default": "Alt+Shift+F",
+                "mac": "Alt+Shift+F"
+            },
+            "description": "切换专注模式"
+        },
+        "toggle-dark-mode": {
+            "suggested_key": {
+                "default": "Alt+Shift+D",
+                "mac": "Alt+Shift+D"
+            },
+            "description": "切换强制暗色模式"
+        },
+        "toggle-reading-time": {
+            "suggested_key": {
+                "default": "Alt+Shift+R",
+                "mac": "Alt+Shift+R"
+            },
+            "description": "切换阅读时间显示"
+        }
+    },
     "icons": {
         "128": "icon.png"
     }

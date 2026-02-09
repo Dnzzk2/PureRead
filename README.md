@@ -2,7 +2,7 @@
 
 > **Note**: 本项目由 **Vibe Coding** 生成，核心逻辑与代码实现均由 AI 辅助完成，并非完全手写。旨在探索 AI 辅助编程的潜力与最佳实践。
 
-PureRead 是一款追求极致阅读体验的浏览器扩展（Chrome/Edge）。它通过强制重写网页的字体、行高、字重等排版属性，让互联网早期的混乱排版回归“纸质阅读”般的舒适感。
+PureRead 是一款专注于提升网页阅读体验的浏览器扩展（Chrome/Edge）。它提供字体替换、排版调节、阅读进度可视化、专注模式等功能，帮助你在任何网页上获得更舒适的阅读体验。
 
 ## 核心逻辑 (Logic & Rules)
 
@@ -24,7 +24,19 @@ PureRead 是一款追求极致阅读体验的浏览器扩展（Chrome/Edge）。
     - 为了防止破坏网页功能，内置了严格的排除规则（`exclude` 对象）。
     - **不处理**：图标（FontAwesome/Iconfont）、代码编辑器（CodeMirror/Monaco）、视频播放器、数学公式（MathJax/KaTeX 独立处理）。
 
-4.  **字体模拟算法 (Typography Simulation)**
+4.  **阅读增强功能 (Reading Enhancement)**
+    - **阅读进度条**：在页面顶部显示当前阅读进度（0-100%），支持自定义颜色。默认翡翠绿 `#10b981`。
+    - **专注模式**：一键淡化侧边栏、广告、导航栏等非正文区域（站点级记忆）。悬停时恢复可见。
+    - **智能暗色模式**：自动检测网站是否支持原生暗色主题。如果支持，触发网站内置暗色模式；如果不支持，使用 CSS filter 反转颜色（fallback）。
+    - **阅读时间估算**：自动计算正文字数，显示预计阅读时间（中文 400字/分钟，英文 200词/分钟）。
+
+5.  **快捷键支持 (Keyboard Shortcuts)**
+    - `Ctrl+Shift+P`（Mac: `⌘+⇧+P`）：开关当前站点
+    - `Ctrl+Shift+F`（Mac: `⌘+⇧+F`）：切换专注模式
+    - `Ctrl+Shift+D`（Mac: `⌘+⇧+D`）：切换暗色模式
+    - `Ctrl+Shift+T`（Mac: `⌘+⇧+T`）：切换阅读时间显示
+
+6.  **字体模拟算法 (Typography Simulation)**
     - **字重调节**：由于许多网页字体没有细致的字重（300/400/500），本项目通过 CSS `text-shadow` 或 `-webkit-text-stroke` 模拟微调字重，或通过 `opacity` 模拟更细的字体视觉。
 
 ## 学习价值 (Learning Context)
