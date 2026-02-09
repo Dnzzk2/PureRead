@@ -31,13 +31,14 @@ PureRead 是一款专注于提升网页阅读体验的浏览器扩展（Chrome/E
     - **阅读时间估算**：自动计算正文字数，显示预计阅读时间（中文 400字/分钟，英文 200词/分钟）。
 
 5.  **快捷键支持 (Keyboard Shortcuts)**
-    - `Ctrl+Shift+P`（Mac: `⌘+⇧+P`）：开关当前站点
-    - `Ctrl+Shift+F`（Mac: `⌘+⇧+F`）：切换专注模式
-    - `Ctrl+Shift+D`（Mac: `⌘+⇧+D`）：切换暗色模式
-    - `Ctrl+Shift+T`（Mac: `⌘+⇧+T`）：切换阅读时间显示
+    - `Alt+Shift+P`：开关当前站点
+    - `Alt+Shift+F`：切换专注模式
+    - `Alt+Shift+D`：切换暗色模式
+    - `Alt+Shift+R`：切换阅读时间显示
 
-6.  **字体模拟算法 (Typography Simulation)**
-    - **字重调节**：由于许多网页字体没有细致的字重（300/400/500），本项目通过 CSS `text-shadow` 或 `-webkit-text-stroke` 模拟微调字重，或通过 `opacity` 模拟更细的字体视觉。
+6.  **构建与发布 (Build & Release)**
+    - 项目内置了 `build.py` 自动化脚本。
+    - 运行 `python build.py` 即可自动读取版本号并生成发布用的 ZIP 压缩包。
 
 ## 学习价值 (Learning Context)
 
