@@ -93,13 +93,21 @@
         padding-bottom: 16px;
         border-bottom: 1px solid var(--border);
       }
+      .logo {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .logo img {
+        width: 26px;
+        height: 26px;
+      }
       .logo span {
-        font-family: var(--font-serif);
-        font-weight: 700;
-        font-size: 26px;
+        font-family: var(--font-sans);
+        font-weight: 800;
+        font-size: 20px;
         color: var(--primary);
-        letter-spacing: -0.5px;
-        font-style: italic;
+        letter-spacing: -0.3px;
       }
       .header-actions {
         display: flex;
@@ -654,7 +662,9 @@
   </head>
   <body>
     <div class="header">
-      <div class="logo"><span>PureRead</span></div>
+      <div class="logo">
+        <img src="icon.png" />
+      </div>
       <div class="header-actions">
         <div class="settings-link" id="open-settings" title="高级设置">
           <svg

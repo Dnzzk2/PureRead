@@ -5,236 +5,439 @@
     <title>PureRead 控制中心</title>
     <style>
       /* ═══════════════════════════════════════════════════════════
-         PureRead 控制中心 - 典雅排版风格 (Elegant Typography)
-         设计理念：纸张质感、复古排版、低饱和度配色
+         PureRead 控制中心 — 现代简约设计
          ═══════════════════════════════════════════════════════════ */
 
       :root {
-        /* 核心色彩 */
-        --primary: #2c3e50;           /* 普鲁士蓝 - 主色调 */
-        --primary-soft: #ecf0f3;      /* 主色的淡化版本 */
-        --accent: #c9a227;            /* 古铜金 - 点缀色 */
+        --primary: #1a1a2e;
+        --primary-light: #16213e;
+        --accent: #0f3460;
+        --accent-glow: #e94560;
+        --accent-glow-soft: rgba(233, 69, 96, 0.08);
 
-        /* 背景层次 */
-        --bg: #f5f4f2;                /* 象牙纸色 - 主背景 */
-        --card-bg: #ffffff;           /* 纯白色 - 卡片背景 */
+        --bg: #fafafa;
+        --card-bg: #ffffff;
+        --surface: #f4f4f5;
 
-        /* 边框与分割 */
-        --border: #e8e4df;            /* 暖灰边框 */
-        --border-strong: #d4cfc7;     /* 强调边框 */
+        --border: #e4e4e7;
+        --border-strong: #d4d4d8;
 
-        /* 文字层次 */
-        --text: #1a1a1a;              /* 深墨色 - 主文字 */
-        --text-light: #6b6b6b;        /* 中灰色 - 次要文字 */
-        --text-muted: #999999;        /* 浅灰色 - 辅助文字 */
+        --text: #18181b;
+        --text-light: #52525b;
+        --text-muted: #a1a1aa;
 
-        /* 动效与阴影 */
-        --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        --shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.03);
-        --shadow-hover: 0 2px 8px rgba(0, 0, 0, 0.06), 0 8px 24px rgba(0, 0, 0, 0.04);
+        --radius: 12px;
+        --radius-sm: 8px;
+        --transition: 0.2s ease;
+        --shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 2px 8px rgba(0, 0, 0, 0.03);
+        --shadow-md:
+          0 4px 16px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04);
+        --shadow-lg:
+          0 8px 32px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04);
 
-        /* 字体栈 */
-        --font-serif: "Georgia", "Source Serif Pro", "Songti SC", serif;
-        --font-sans: "Inter", -apple-system, "Segoe UI", sans-serif;
-        --font-mono: "SF Mono", "Fira Code", "Consolas", monospace;
+        --font: -apple-system, "Segoe UI", sans-serif;
+        --font-mono: "Fira Code", "Consolas", monospace;
       }
 
       @media (prefers-color-scheme: dark) {
         :root {
-          --primary: #7c9ab5;
-          --primary-soft: rgba(124, 154, 181, 0.12);
-          --accent: #d4af37;
-          --bg: #18181a;
-          --card-bg: #222224;
-          --border: #3a3a3c;
-          --border-strong: #4a4a4c;
-          --text: #e8e8e8;
-          --text-light: #a0a0a0;
-          --text-muted: #6a6a6a;
-          --shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-          --shadow-hover: 0 4px 16px rgba(0, 0, 0, 0.3);
+          --primary: #c8cdd3;
+          --primary-light: #a1a8b0;
+          --accent: #6b8db5;
+          --accent-glow: #e94560;
+          --accent-glow-soft: rgba(233, 69, 96, 0.12);
+
+          --bg: #111113;
+          --card-bg: #1a1a1e;
+          --surface: #222226;
+
+          --border: #2e2e32;
+          --border-strong: #3e3e44;
+
+          --text: #ececef;
+          --text-light: #9898a0;
+          --text-muted: #5c5c66;
+
+          --shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+          --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
+          --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
         }
+      }
+
+      /* ═══ 基础重置 ═══ */
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      ::-webkit-scrollbar {
+        width: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: var(--border-strong);
+        border-radius: 3px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: var(--text-muted);
       }
 
       body {
         margin: 0;
-        padding: 48px;
-        font-family: var(--font-sans);
+        padding: 0;
+        font-family: var(--font);
         background: var(--bg);
         color: var(--text);
-        display: flex;
-        justify-content: center;
         line-height: 1.6;
         -webkit-font-smoothing: antialiased;
-      }
-      .container {
-        width: 100%;
-        max-width: 1100px;
+        min-height: 100vh;
+        position: relative;
+        overflow-x: hidden;
       }
 
-      /* ═══ 头部区域 ═══ */
-      header {
-        margin-bottom: 48px;
-        display: flex;
-        align-items: baseline;
-        justify-content: space-between;
-        padding-bottom: 24px;
-        border-bottom: 2px solid var(--primary);
+      /* 图标水印 */
+      body::before {
+        content: "";
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 780px;
+        height: 780px;
+        background: url("icon.png") no-repeat center / contain;
+        opacity: 0.07;
+        pointer-events: none;
+        z-index: 0;
       }
-      header h1 {
-        margin: 0;
-        font-family: var(--font-serif);
-        font-weight: 700;
-        font-size: 42px;
-        letter-spacing: -1px;
-        color: var(--primary);
-        font-style: italic;
+      @media (prefers-color-scheme: dark) {
+        body::before {
+          opacity: 0.04;
+        }
+      }
+
+      /* 噪点纹理叠加 */
+      body::after {
+        content: "";
+        position: fixed;
+        inset: 0;
+        opacity: 0.3;
+        pointer-events: none;
+        z-index: 0;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+        background-repeat: repeat;
+        background-size: 256px 256px;
+      }
+
+      /* 渐变光斑 */
+      .glow-orb {
+        position: fixed;
+        border-radius: 50%;
+        filter: blur(100px);
+        pointer-events: none;
+        z-index: 0;
+      }
+      .glow-orb.orb-1 {
+        width: 500px;
+        height: 500px;
+        background: rgba(99, 102, 241, 0.06);
+        top: -120px;
+        right: -100px;
+      }
+      .glow-orb.orb-2 {
+        width: 400px;
+        height: 400px;
+        background: rgba(59, 130, 246, 0.05);
+        bottom: -80px;
+        left: -80px;
+      }
+      @media (prefers-color-scheme: dark) {
+        .glow-orb.orb-1 {
+          background: rgba(99, 102, 241, 0.08);
+        }
+        .glow-orb.orb-2 {
+          background: rgba(59, 130, 246, 0.06);
+        }
+      }
+
+      /* ═══ 主容器 ═══ */
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 48px 48px 80px;
+        position: relative;
+        z-index: 1;
       }
 
       /* ═══ 两栏布局 ═══ */
       .grid {
         display: grid;
-        grid-template-columns: 1fr 360px;
-        gap: 40px;
+        grid-template-columns: 1fr 380px;
+        gap: 32px;
+        align-items: start;
       }
 
-      /* ═══ 卡片区块 ═══ */
+      /* ═══ 载入动画 ═══ */
+      @keyframes card-enter {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      /* ═══ 卡片 ═══ */
       .section {
         background: var(--card-bg);
         border: 1px solid var(--border);
-        border-radius: 6px;
-        padding: 32px;
+        border-radius: var(--radius);
+        padding: 28px;
         box-shadow: var(--shadow);
-        margin-bottom: 32px;
+        margin-bottom: 24px;
+        transition:
+          box-shadow 0.3s ease,
+          transform 0.3s ease;
+        position: relative;
+        overflow: hidden;
+        animation: card-enter 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+      }
+      /* 交错延迟 */
+      .section:nth-child(1) {
+        animation-delay: 0.08s;
+      }
+      .section:nth-child(2) {
+        animation-delay: 0.2s;
+      }
+      .section:nth-child(3) {
+        animation-delay: 0.32s;
+      }
+      .section:nth-child(4) {
+        animation-delay: 0.44s;
+      }
+
+      .section:hover {
+        box-shadow: var(--shadow-md);
+        transform: translateY(-2px);
+      }
+
+      .section-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 24px;
       }
 
       h2 {
-        margin-top: 0;
-        font-family: var(--font-serif);
-        font-size: 18px;
+        margin: 0;
+        font-size: 15px;
         font-weight: 700;
         display: flex;
         align-items: center;
-        gap: 12px;
-        margin-bottom: 28px;
+        gap: 10px;
         color: var(--text);
-        letter-spacing: -0.3px;
+        letter-spacing: -0.2px;
       }
-      h2::before {
-        content: "";
-        width: 4px;
-        height: 20px;
-        background: var(--primary);
-        border-radius: 2px;
+      h2 .icon-wrap {
+        width: 32px;
+        height: 32px;
+        border-radius: var(--radius-sm);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
       }
+      h2 .icon-wrap svg {
+        width: 16px;
+        height: 16px;
+      }
+      h2 .icon-wrap.blue {
+        background: #dbeafe;
+        color: #2563eb;
+      }
+      h2 .icon-wrap.green {
+        background: #d1fae5;
+        color: #059669;
+      }
+      h2 .icon-wrap.amber {
+        background: #fef3c7;
+        color: #d97706;
+      }
+      h2 .icon-wrap.rose {
+        background: #ffe4e6;
+        color: #e11d48;
+      }
+      h2 .icon-wrap.violet {
+        background: #ede9fe;
+        color: #7c3aed;
+      }
+      h2 .icon-wrap.slate {
+        background: #f1f5f9;
+        color: #475569;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        h2 .icon-wrap.blue {
+          background: rgba(37, 99, 235, 0.15);
+          color: #60a5fa;
+        }
+        h2 .icon-wrap.green {
+          background: rgba(5, 150, 105, 0.15);
+          color: #34d399;
+        }
+        h2 .icon-wrap.amber {
+          background: rgba(217, 119, 6, 0.15);
+          color: #fbbf24;
+        }
+        h2 .icon-wrap.rose {
+          background: rgba(225, 29, 72, 0.15);
+          color: #fb7185;
+        }
+        h2 .icon-wrap.violet {
+          background: rgba(124, 58, 237, 0.15);
+          color: #a78bfa;
+        }
+        h2 .icon-wrap.slate {
+          background: rgba(71, 85, 105, 0.15);
+          color: #94a3b8;
+        }
+      }
+
       h2 i {
-        display: none; /* 隐藏原有的 i 元素 */
+        display: none;
       }
 
       /* ═══ 方案列表 ═══ */
       .scheme-list {
         display: flex;
         flex-direction: column;
-        gap: 14px;
+        gap: 10px;
       }
       .scheme-item {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 18px 24px;
-        background: var(--bg);
+        padding: 16px 18px;
+        background: var(--surface);
         border: 1px solid var(--border);
-        border-radius: 6px;
-        transition: var(--transition);
+        border-radius: var(--radius-sm);
+        transition: all 0.25s ease;
       }
       .scheme-item:hover {
-        border-color: var(--primary);
-        box-shadow: var(--shadow-hover);
+        border-color: var(--border-strong);
+        box-shadow: var(--shadow);
+        transform: translateY(-1px);
       }
       .scheme-info {
         flex: 1;
+        min-width: 0;
       }
       .scheme-title {
-        font-weight: 700;
-        font-size: 15px;
-        margin-bottom: 4px;
+        font-weight: 600;
+        font-size: 14px;
+        margin-bottom: 3px;
         color: var(--text);
       }
       .scheme-meta {
         font-size: 12px;
         color: var(--text-muted);
         font-family: var(--font-mono);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
       .scheme-actions {
         display: flex;
-        gap: 10px;
+        gap: 6px;
+        margin-left: 12px;
+        flex-shrink: 0;
       }
 
-      /* ═══ 操作按钮 ═══ */
+      /* ═══ 操作 / 图标按钮 ═══ */
       .action-btn {
-        width: 36px;
-        height: 36px;
-        border-radius: 4px;
+        width: 34px;
+        height: 34px;
+        border-radius: var(--radius-sm);
         display: flex;
         align-items: center;
         justify-content: center;
         cursor: pointer;
-        transition: 0.2s;
+        transition: all var(--transition);
         border: 1px solid var(--border);
         background: var(--card-bg);
         color: var(--text-muted);
       }
       .action-btn:hover {
-        background: var(--primary-soft);
-        color: var(--primary);
-        border-color: var(--primary);
+        background: var(--surface);
+        color: var(--text);
+        border-color: var(--border-strong);
       }
       .action-btn.del:hover {
         background: #fef2f2;
-        color: #c0392b;
-        border-color: #c0392b;
+        color: #dc2626;
+        border-color: #fecaca;
+      }
+      @media (prefers-color-scheme: dark) {
+        .action-btn.del:hover {
+          background: rgba(220, 38, 38, 0.1);
+          color: #f87171;
+          border-color: rgba(220, 38, 38, 0.2);
+        }
       }
 
-      /* ═══ 站点管理区域 ═══ */
+      /* ═══ 站点管理 ═══ */
       .notice-card {
-        background: var(--primary-soft);
-        border-radius: 6px;
-        padding: 20px 24px;
-        margin-bottom: 24px;
+        background: var(--surface);
+        border-radius: var(--radius-sm);
+        padding: 16px 20px;
+        margin-bottom: 20px;
         border: 1px solid var(--border);
-      }
-      .notice-card h3 {
-        margin: 0 0 10px 0;
-        font-size: 13px;
-        font-weight: 700;
-        color: var(--primary);
-        text-transform: uppercase;
-        letter-spacing: 1px;
-      }
-      .notice-card p {
-        margin: 0;
         font-size: 13px;
         line-height: 1.7;
         color: var(--text-light);
+      }
+      .notice-card b {
+        color: var(--text);
+      }
+      .notice-card h3 {
+        margin: 0 0 8px 0;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+      }
+      .notice-card p {
+        margin: 0;
       }
 
       .site-list {
         display: flex;
         flex-direction: column;
-        gap: 10px;
+        gap: 8px;
       }
       .site-row {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 14px 18px;
-        background: var(--bg);
+        padding: 12px 16px;
+        background: var(--surface);
         border: 1px solid var(--border);
-        border-radius: 6px;
+        border-radius: var(--radius-sm);
+        transition: all var(--transition);
+      }
+      .site-row:hover {
+        border-color: var(--border-strong);
       }
       .site-domain {
         font-family: var(--font-mono);
-        font-weight: 600;
+        font-weight: 500;
         font-size: 13px;
         color: var(--text);
       }
@@ -242,29 +445,284 @@
         font-family: var(--font-mono);
         font-size: 10px;
         padding: 3px 10px;
-        border-radius: 3px;
-        font-weight: 700;
+        border-radius: 20px;
+        font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.5px;
       }
       .badge-off {
         background: #fef2f2;
-        color: #c0392b;
+        color: #dc2626;
       }
       .badge-custom {
-        background: var(--primary-soft);
-        color: var(--primary);
+        background: #ecfdf5;
+        color: #059669;
+      }
+      @media (prefers-color-scheme: dark) {
+        .badge-off {
+          background: rgba(220, 38, 38, 0.12);
+          color: #f87171;
+        }
+        .badge-custom {
+          background: rgba(5, 150, 105, 0.12);
+          color: #34d399;
+        }
+      }
+
+      /* ═══ 存储容量 ═══ */
+      .storage-card {
+        padding: 16px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+      }
+      .storage-header {
+        font-size: 13px;
+        font-weight: 600;
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 10px;
+      }
+      .storage-bar-track {
+        height: 6px;
+        background: var(--border);
+        border-radius: 3px;
+        margin-bottom: 8px;
+        overflow: hidden;
+      }
+      .storage-bar-fill {
+        width: 0%;
+        height: 100%;
+        background: linear-gradient(90deg, #3b82f6, #6366f1);
+        border-radius: 3px;
+        transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      .storage-detail {
+        font-size: 12px;
+        color: var(--text-muted);
+        font-family: var(--font-mono);
+      }
+
+      /* ═══ 涟漪效果 ═══ */
+      @keyframes ripple {
+        to {
+          transform: scale(4);
+          opacity: 0;
+        }
+      }
+      .ripple-wrap {
+        position: relative;
+        overflow: hidden;
+      }
+      .ripple-wrap .ripple {
+        position: absolute;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.35);
+        width: 20px;
+        height: 20px;
+        transform: scale(0);
+        animation: ripple 0.5s ease-out;
+        pointer-events: none;
+      }
+
+      /* ═══ 按钮 ═══ */
+      .btn {
+        padding: 10px 20px;
+        border-radius: var(--radius-sm);
+        font-weight: 600;
+        cursor: pointer;
+        font-size: 13px;
+        font-family: var(--font);
+        border: none;
+        transition: all var(--transition);
+        letter-spacing: -0.1px;
+        position: relative;
+        overflow: hidden;
+      }
+      .btn-ghost {
+        background: var(--surface);
+        color: var(--text);
+        border: 1px solid var(--border);
+      }
+      .btn-ghost:hover {
+        background: var(--border);
+        border-color: var(--border-strong);
+      }
+      .btn-primary {
+        background: var(--text);
+        color: var(--bg);
+      }
+      .btn-primary:hover {
+        opacity: 0.85;
+      }
+      .btn-danger {
+        background: #dc2626;
+        color: white;
+      }
+      .btn-danger:hover {
+        opacity: 0.85;
+      }
+      .btn-text-danger {
+        background: none;
+        border: 1px solid var(--border);
+        color: #dc2626;
+        font-size: 12px;
+        padding: 6px 14px;
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        font-family: var(--font);
+      }
+      .btn-text-danger:hover {
+        background: #fef2f2;
+        border-color: #fecaca;
+      }
+      @media (prefers-color-scheme: dark) {
+        .btn-text-danger:hover {
+          background: rgba(220, 38, 38, 0.1);
+          border-color: rgba(220, 38, 38, 0.2);
+        }
+      }
+
+      /* ═══ 备份按钮 ═══ */
+      .backup-btn {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 12px 20px;
+        border-radius: var(--radius-sm);
+        font-weight: 600;
+        cursor: pointer;
+        font-size: 13px;
+        font-family: var(--font);
+        border: none;
+        transition: all var(--transition);
+      }
+      .backup-btn svg {
+        width: 16px;
+        height: 16px;
+      }
+      .backup-btn.export {
+        background: var(--text);
+        color: var(--bg);
+      }
+      .backup-btn.export:hover {
+        opacity: 0.85;
+      }
+      .backup-btn.import {
+        background: var(--surface);
+        color: var(--text);
+        border: 1px solid var(--border);
+        box-sizing: border-box;
+      }
+      .backup-btn.import:hover {
+        background: var(--border);
+        border-color: var(--border-strong);
+      }
+
+      /* ═══ CSS 选择器区域 ═══ */
+      .selector-group {
+        margin-bottom: 18px;
+      }
+      .selector-group:last-child {
+        margin-bottom: 0;
+      }
+      .selector-label-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 8px;
+      }
+      .selector-label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text);
+      }
+      .selector-label .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+      .selector-label .dot.blue {
+        background: #3b82f6;
+      }
+      .selector-label .dot.green {
+        background: #10b981;
+      }
+      .selector-label .dot.amber {
+        background: #f59e0b;
+      }
+      .selector-tag {
+        font-size: 10px;
+        color: var(--text-muted);
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      /* ═══ 表单 ═══ */
+      .form-group {
+        margin-bottom: 20px;
+      }
+      .form-label {
+        display: block;
+        font-size: 12px;
+        font-weight: 600;
+        margin-bottom: 8px;
+        color: var(--text-light);
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+      }
+      .form-input {
+        width: 100%;
+        padding: 12px 14px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        font-size: 13px;
+        font-family: var(--font-mono);
+        color: var(--text);
+        box-sizing: border-box;
+        outline: none;
+        transition: all var(--transition);
+        line-height: 1.5;
+      }
+      .form-input:focus {
+        border-color: var(--border-strong);
+        box-shadow: 0 0 0 3px var(--accent-glow-soft);
+      }
+      .form-input::placeholder {
+        color: var(--text-muted);
+      }
+
+      .textarea-input {
+        height: 64px;
+        resize: vertical;
+        font-family: var(--font-mono);
+        font-size: 12px;
+        padding: 12px 14px;
+        line-height: 1.6;
+      }
+
+      .empty {
+        color: var(--text-muted);
+        font-size: 13px;
+        text-align: center;
+        padding: 40px 20px;
+        line-height: 1.6;
       }
 
       /* ═══ 模态框 ═══ */
       .modal-overlay {
         position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0, 0, 0, 0.5);
-        backdrop-filter: blur(4px);
+        inset: 0;
+        background: rgba(0, 0, 0, 0.4);
+        backdrop-filter: blur(8px);
         display: none;
         align-items: center;
         justify-content: center;
@@ -273,104 +731,32 @@
       .modal {
         background: var(--card-bg);
         width: 100%;
-        max-width: 460px;
-        border-radius: 8px;
-        padding: 36px;
-        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+        max-width: 480px;
+        border-radius: var(--radius);
+        padding: 32px;
+        box-shadow: var(--shadow-lg);
+        border: 1px solid var(--border);
       }
       .modal-title {
-        font-family: var(--font-serif);
-        font-size: 22px;
+        font-size: 18px;
         font-weight: 700;
-        margin-bottom: 16px;
+        margin-bottom: 12px;
         color: var(--text);
+        letter-spacing: -0.3px;
       }
       .modal-body {
         font-size: 14px;
         color: var(--text-light);
-        margin-bottom: 28px;
+        margin-bottom: 24px;
         line-height: 1.7;
       }
       .modal-footer {
         display: flex;
         justify-content: flex-end;
-        gap: 12px;
+        gap: 10px;
       }
 
-      /* ═══ 按钮系统 ═══ */
-      .btn {
-        padding: 12px 24px;
-        border-radius: 4px;
-        font-weight: 700;
-        cursor: pointer;
-        font-size: 13px;
-        border: none;
-        transition: 0.2s;
-        letter-spacing: 0.3px;
-      }
-      .btn-ghost {
-        background: var(--bg);
-        color: var(--text);
-        border: 1px solid var(--border);
-      }
-      .btn-ghost:hover {
-        background: var(--border);
-      }
-      .btn-primary {
-        background: var(--primary);
-        color: white;
-      }
-      .btn-primary:hover {
-        opacity: 0.9;
-      }
-      .btn-danger {
-        background: #c0392b;
-        color: white;
-      }
-
-      /* ═══ 表单样式 ═══ */
-      .form-group {
-        margin-bottom: 20px;
-      }
-      .form-label {
-        display: block;
-        font-size: 11px;
-        font-weight: 700;
-        margin-bottom: 10px;
-        color: var(--text-light);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-      }
-      .form-input {
-        width: 100%;
-        padding: 14px 16px;
-        background: var(--bg);
-        border: 1px solid var(--border);
-        border-radius: 4px;
-        font-size: 13px;
-        font-family: var(--font-mono);
-        color: var(--text);
-        box-sizing: border-box;
-        outline: none;
-        transition: var(--transition);
-        line-height: 1.5;
-      }
-      .form-input:focus {
-        border-color: var(--primary);
-      }
-      .form-input::placeholder {
-        color: var(--text-muted);
-      }
-
-      .empty {
-        font-style: italic;
-        color: var(--text-muted);
-        font-size: 14px;
-        text-align: center;
-        padding: 48px;
-      }
-
-      /* ═══ 字体下拉选择 ═══ */
+      /* ═══ 字体下拉 ═══ */
       .font-input-wrapper {
         position: relative;
       }
@@ -381,77 +767,141 @@
         right: 0;
         background: var(--card-bg);
         border: 1px solid var(--border);
-        border-radius: 6px;
+        border-radius: var(--radius-sm);
         max-height: 200px;
         overflow-y: auto;
-        box-shadow: var(--shadow-hover);
+        box-shadow: var(--shadow-md);
         z-index: 1001;
         display: none;
-        padding: 6px;
+        padding: 4px;
         margin-top: 4px;
       }
       .font-dropdown-item {
-        padding: 12px 16px;
-        font-size: 14px;
-        border-radius: 4px;
+        padding: 10px 14px;
+        font-size: 13px;
+        border-radius: 6px;
         cursor: pointer;
-        transition: 0.15s;
+        transition: all var(--transition);
         color: var(--text);
       }
       .font-dropdown-item:hover {
-        background: var(--primary-soft);
-        color: var(--primary);
+        background: var(--surface);
+      }
+
+      /* ═══ 保存按钮 ═══ */
+      .save-area {
+        margin-top: 24px;
+        display: flex;
+        justify-content: flex-end;
+      }
+      .save-btn {
+        padding: 10px 24px;
+        border-radius: var(--radius-sm);
+        background: var(--text);
+        color: var(--bg);
+        border: none;
+        font-size: 13px;
+        font-weight: 600;
+        font-family: var(--font);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: all var(--transition);
+      }
+      .save-btn:hover {
+        opacity: 0.85;
+      }
+      .save-btn svg {
+        width: 15px;
+        height: 15px;
+      }
+
+      /* ═══ 描述文字 ═══ */
+      .desc {
+        font-size: 13px;
+        color: var(--text-light);
+        margin-bottom: 20px;
+        line-height: 1.6;
+      }
+      .desc code {
+        background: var(--surface);
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-family: var(--font-mono);
+        font-size: 12px;
+        border: 1px solid var(--border);
       }
     </style>
   </head>
   <body>
-    <div class="container">
-      <header>
-        <h1>PureRead</h1>
-        <div
-          style="font-size: 13px; color: var(--text-light); font-weight: 500"
-        >
-          高级设置中心
-        </div>
-      </header>
+    <!-- 渐变光斑 -->
+    <div class="glow-orb orb-1"></div>
+    <div class="glow-orb orb-2"></div>
 
+    <div class="container">
       <div class="grid">
+        <!-- ═══ 左栏 ═══ -->
         <div class="left-col">
           <!-- 方案管理 -->
-          <div class="section">
-            <h2><i></i>存储方案库</h2>
+          <div class="section" data-color="blue">
+            <div class="section-header">
+              <h2>
+                <span class="icon-wrap blue">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path
+                      d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"
+                    />
+                    <polyline points="17 21 17 13 7 13 7 21" />
+                    <polyline points="7 3 7 8 15 8" />
+                  </svg>
+                </span>
+                存储方案库
+              </h2>
+            </div>
             <div id="schemes-container" class="scheme-list">
               <!-- JS Rendering -->
             </div>
           </div>
-          <!-- 黑白名单管理 -->
-          <div class="section">
-            <div
-              style="
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                margin-bottom: 20px;
-              "
-            >
-              <h2 style="margin-bottom: 0"><i></i>站点管理中心</h2>
-              <button
-                id="clear-sites"
-                class="btn btn-ghost"
-                style="font-size: 12px; padding: 6px 12px; color: #ef4444"
-              >
-                清空全部记录
-              </button>
+
+          <!-- 站点管理 -->
+          <div class="section" data-color="green">
+            <div class="section-header">
+              <h2>
+                <span class="icon-wrap green">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="2" y1="12" x2="22" y2="12" />
+                    <path
+                      d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"
+                    />
+                  </svg>
+                </span>
+                站点管理
+              </h2>
+              <button id="clear-sites" class="btn-text-danger">清空全部</button>
             </div>
 
             <div class="notice-card">
-              <h3>管理逻辑说明</h3>
+              <h3>管理逻辑</h3>
               <p>
-                当你在某个站点手动切换开关或选择“单独定制”时，系统会自动在此生成一条记录。<br />
-                <b>白名单：</b>在总开关关闭的情况下，这里的
-                <b>ON</b> 站点仍会生效。<br />
-                <b>黑名单：</b>在总开关开启的情况下，这里的
-                <b>OFF</b> 站点将不再修改任何字体。
+                在某个站点手动切换开关或选择"单独定制"时，系统会自动生成记录。<br />
+                <b>白名单：</b>总开关关闭时，<b>ON</b> 站点仍会生效。<br />
+                <b>黑名单：</b>总开关开启时，<b>OFF</b> 站点不再修改字体。
               </p>
             </div>
 
@@ -461,332 +911,74 @@
           </div>
         </div>
 
-        <!-- 侧边栏 -->
+        <!-- ═══ 右栏 ═══ -->
         <div class="right-col">
-          <div class="section">
-            <h2><i></i>存储容量</h2>
-            <div
-              style="
-                padding: 12px;
-                background: var(--bg);
-                border: 1px solid var(--border);
-                border-radius: 12px;
-              "
-            >
-              <div
-                style="
-                  font-size: 13px;
-                  font-weight: 700;
-                  display: flex;
-                  justify-content: space-between;
-                "
-              >
+          <!-- 存储容量 -->
+          <div class="section" data-color="amber">
+            <div class="section-header">
+              <h2>
+                <span class="icon-wrap amber">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path
+                      d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"
+                    />
+                    <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+                    <line x1="12" y1="22.08" x2="12" y2="12" />
+                  </svg>
+                </span>
+                存储容量
+              </h2>
+            </div>
+            <div class="storage-card">
+              <div class="storage-header">
                 <span>空间占用</span>
-                <span id="storage-percentage" style="color: var(--primary)"
+                <span
+                  id="storage-percentage"
+                  style="color: #3b82f6; font-family: var(--font-mono)"
                   >0%</span
                 >
               </div>
-              <div
-                style="
-                  height: 6px;
-                  background: var(--border);
-                  border-radius: 3px;
-                  margin: 10px 0;
-                  overflow: hidden;
-                "
-              >
-                <div
-                  id="storage-bar"
-                  style="
-                    width: 0%;
-                    height: 100%;
-                    background: var(--primary);
-                    transition: width 0.5s;
-                  "
-                ></div>
+              <div class="storage-bar-track">
+                <div id="storage-bar" class="storage-bar-fill"></div>
               </div>
-              <div
-                id="storage-text"
-                style="font-size: 11px; color: var(--text-light)"
-              >
-                载入中...
-              </div>
+              <div id="storage-text" class="storage-detail">载入中...</div>
             </div>
           </div>
 
-          <!-- 导入导出功能 -->
-          <div class="section">
-            <h2><i></i>配置备份</h2>
-            <p style="font-size: 12px; color: var(--text-light); margin-bottom: 20px; line-height: 1.6;">
-              导出当前所有配置（包括字体方案、站点设置、CSS选择器）为 JSON 文件，或从备份文件恢复。
-            </p>
-            <div style="display: flex; flex-direction: column; gap: 10px;">
-              <button id="export-config" class="btn btn-primary" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;">
-                <svg style="width: 16px; height: 16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                  <polyline points="7 10 12 15 17 10"/>
-                  <line x1="12" y1="15" x2="12" y2="3"/>
-                </svg>
-                导出配置
-              </button>
-              <label class="btn btn-ghost" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; box-sizing: border-box;">
-                <svg style="width: 16px; height: 16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                  <polyline points="17 8 12 3 7 8"/>
-                  <line x1="12" y1="3" x2="12" y2="15"/>
-                </svg>
-                导入配置
-                <input type="file" id="import-config" accept=".json" style="display: none;" />
-              </label>
+          <!-- 配置备份 -->
+          <div class="section" data-color="violet">
+            <div class="section-header">
+              <h2>
+                <span class="icon-wrap violet">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <polyline points="8 17 12 21 16 17" />
+                    <line x1="12" y1="12" x2="12" y2="21" />
+                    <path
+                      d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"
+                    />
+                  </svg>
+                </span>
+                配置备份
+              </h2>
             </div>
-          </div>
-
-          <div class="section" style="position: relative; overflow: hidden">
-            <div
-              style="
-                position: absolute;
-                top: -10px;
-                right: -10px;
-                opacity: 0.03;
-                pointer-events: none;
-              "
-            >
-              <svg
-                width="120"
-                height="120"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-              >
-                <path
-                  d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"
-                />
-              </svg>
-            </div>
-            <h2><i></i>补充 CSS 选择器</h2>
-            <p
-              style="
-                font-size: 13px;
-                color: var(--text-light);
-                margin-bottom: 24px;
-                line-height: 1.6;
-              "
-            >
-              强制将特定页面元素应用到对应的字体预设。每行输入一个 CSS
-              选择器（如
-              <code
-                style="
-                  background: var(--bg);
-                  padding: 2px 4px;
-                  border-radius: 4px;
-                "
-                >.article-body</code
-              >）。
-            </p>
-
-            <div style="display: flex; flex-direction: column; gap: 20px">
-              <div class="form-group" style="margin-bottom: 0">
-                <div
-                  style="
-                    display: flex;
-                    align-items: center;
-                    justify-content: space-between;
-                    margin-bottom: 8px;
-                  "
-                >
-                  <label
-                    class="form-label"
-                    style="
-                      display: flex;
-                      align-items: center;
-                      gap: 8px;
-                      margin-bottom: 0;
-                      color: var(--primary);
-                    "
-                  >
-                    <svg
-                      style="width: 16px; height: 16px"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2.5"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    >
-                      <path d="M4 7V4h16v3M9 20h6M12 4v16" />
-                    </svg>
-                    标准字体
-                  </label>
-                  <span
-                    style="
-                      font-size: 10px;
-                      color: var(--text-light);
-                      opacity: 0.6;
-                      font-weight: 600;
-                      text-transform: uppercase;
-                    "
-                    >Standard Font</span
-                  >
-                </div>
-                <textarea
-                  id="selectors-standard"
-                  class="form-input"
-                  style="
-                    height: 64px;
-                    resize: vertical;
-                    font-family:
-                      &quot;Fira Code&quot;, &quot;Consolas&quot;, monospace;
-                    font-size: 12px;
-                    background: var(--bg);
-                    border: 1.5px solid var(--border);
-                    padding: 12px;
-                    line-height: 1.5;
-                  "
-                  placeholder=".content-p, .article-text..."
-                ></textarea>
-              </div>
-
-              <div class="form-group" style="margin-bottom: 0">
-                <div
-                  style="
-                    display: flex;
-                    align-items: center;
-                    justify-content: space-between;
-                    margin-bottom: 8px;
-                  "
-                >
-                  <label
-                    class="form-label"
-                    style="
-                      display: flex;
-                      align-items: center;
-                      gap: 8px;
-                      margin-bottom: 0;
-                      color: #10b981;
-                    "
-                  >
-                    <svg
-                      style="width: 16px; height: 16px"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2.5"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    >
-                      <polyline points="16 18 22 12 16 6" />
-                      <polyline points="8 6 2 12 8 18" />
-                    </svg>
-                    代码 / 等宽
-                  </label>
-                  <span
-                    style="
-                      font-size: 10px;
-                      color: var(--text-light);
-                      opacity: 0.6;
-                      font-weight: 600;
-                      text-transform: uppercase;
-                    "
-                    >Monospace</span
-                  >
-                </div>
-                <textarea
-                  id="selectors-mono"
-                  class="form-input"
-                  style="
-                    height: 64px;
-                    resize: vertical;
-                    font-family:
-                      &quot;Fira Code&quot;, &quot;Consolas&quot;, monospace;
-                    font-size: 12px;
-                    background: var(--bg);
-                    border: 1.5px solid var(--border);
-                    padding: 12px;
-                    line-height: 1.5;
-                  "
-                  placeholder="[class*='code'], .mono-font..."
-                ></textarea>
-              </div>
-
-              <div class="form-group" style="margin-bottom: 0">
-                <div
-                  style="
-                    display: flex;
-                    align-items: center;
-                    justify-content: space-between;
-                    margin-bottom: 8px;
-                  "
-                >
-                  <label
-                    class="form-label"
-                    style="
-                      display: flex;
-                      align-items: center;
-                      gap: 8px;
-                      margin-bottom: 0;
-                      color: #f59e0b;
-                    "
-                  >
-                    <svg
-                      style="width: 16px; height: 16px"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2.5"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    >
-                      <line x1="18" y1="6" x2="6" y2="18" />
-                      <line x1="6" y1="6" x2="18" y2="18" />
-                    </svg>
-                    数学公式
-                  </label>
-                  <span
-                    style="
-                      font-size: 10px;
-                      color: var(--text-light);
-                      opacity: 0.6;
-                      font-weight: 600;
-                      text-transform: uppercase;
-                    "
-                    >Math Fonts</span
-                  >
-                </div>
-                <textarea
-                  id="selectors-math"
-                  class="form-input"
-                  style="
-                    height: 64px;
-                    resize: vertical;
-                    font-family:
-                      &quot;Fira Code&quot;, &quot;Consolas&quot;, monospace;
-                    font-size: 12px;
-                    background: var(--bg);
-                    border: 1.5px solid var(--border);
-                    padding: 12px;
-                    line-height: 1.5;
-                  "
-                  placeholder=".Katex-display, .math-eqn..."
-                ></textarea>
-              </div>
-            </div>
-
-            <div
-              style="margin-top: 32px; display: flex; justify-content: flex-end"
-            >
-              <button
-                id="save-selectors"
-                class="btn btn-primary"
-                style="
-                  padding: 12px 28px;
-                  border-radius: 14px;
-                  box-shadow: 0 4px 14px var(--primary-soft);
-                  display: flex;
-                  align-items: center;
-                  gap: 10px;
-                "
-              >
+            <p class="desc">导出所有配置为 JSON 文件，或从备份恢复。</p>
+            <div style="display: flex; flex-direction: column; gap: 8px">
+              <button id="export-config" class="backup-btn export">
                 <svg
-                  style="width: 16px; height: 16px"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -794,13 +986,116 @@
                   stroke-linecap="round"
                   stroke-linejoin="round"
                 >
-                  <path
-                    d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"
-                  />
-                  <polyline points="17 21 17 13 7 13 7 21" />
-                  <polyline points="7 3 7 8 15 8" />
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
                 </svg>
-                保存所有配置记录
+                导出配置
+              </button>
+              <label class="backup-btn import">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="17 8 12 3 7 8" />
+                  <line x1="12" y1="3" x2="12" y2="15" />
+                </svg>
+                导入配置
+                <input
+                  type="file"
+                  id="import-config"
+                  accept=".json"
+                  style="display: none"
+                />
+              </label>
+            </div>
+          </div>
+
+          <!-- CSS 选择器 -->
+          <div class="section" data-color="slate">
+            <div class="section-header">
+              <h2>
+                <span class="icon-wrap slate">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <polyline points="16 18 22 12 16 6" />
+                    <polyline points="8 6 2 12 8 18" />
+                  </svg>
+                </span>
+                CSS 选择器
+              </h2>
+            </div>
+            <p class="desc">
+              将特定元素强制应用字体预设，每行一个选择器（如
+              <code>.article-body</code>）。
+            </p>
+
+            <div class="selector-group">
+              <div class="selector-label-row">
+                <div class="selector-label">
+                  <span class="dot blue"></span> 标准字体
+                </div>
+                <span class="selector-tag">Standard</span>
+              </div>
+              <textarea
+                id="selectors-standard"
+                class="form-input textarea-input"
+                placeholder=".content-p, .article-text..."
+              ></textarea>
+            </div>
+
+            <div class="selector-group">
+              <div class="selector-label-row">
+                <div class="selector-label">
+                  <span class="dot green"></span> 代码 / 等宽
+                </div>
+                <span class="selector-tag">Monospace</span>
+              </div>
+              <textarea
+                id="selectors-mono"
+                class="form-input textarea-input"
+                placeholder="[class*='code'], .mono-font..."
+              ></textarea>
+            </div>
+
+            <div class="selector-group">
+              <div class="selector-label-row">
+                <div class="selector-label">
+                  <span class="dot amber"></span> 数学公式
+                </div>
+                <span class="selector-tag">Math</span>
+              </div>
+              <textarea
+                id="selectors-math"
+                class="form-input textarea-input"
+                placeholder=".Katex-display, .math-eqn..."
+              ></textarea>
+            </div>
+
+            <div class="save-area">
+              <button id="save-selectors" class="save-btn">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+                保存
               </button>
             </div>
           </div>
@@ -808,7 +1103,7 @@
       </div>
     </div>
 
-    <!-- 自定义模态框 (通用) -->
+    <!-- 模态框 -->
     <div class="modal-overlay" id="modal-overlay">
       <div class="modal">
         <div class="modal-title" id="modal-title">标题</div>
@@ -823,5 +1118,19 @@
 
     <script src="shared.js"></script>
     <script src="options.js"></script>
+    <script>
+      // 涟漪效果
+      document.addEventListener("click", (e) => {
+        const btn = e.target.closest(".btn, .backup-btn, .save-btn");
+        if (!btn) return;
+        const rect = btn.getBoundingClientRect();
+        const ripple = document.createElement("span");
+        ripple.className = "ripple";
+        ripple.style.left = e.clientX - rect.left - 10 + "px";
+        ripple.style.top = e.clientY - rect.top - 10 + "px";
+        btn.appendChild(ripple);
+        ripple.addEventListener("animationend", () => ripple.remove());
+      });
+    </script>
   </body>
 </html>
