@@ -3,6 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <style>
+      @import url("https://fontsapi.zeoseven.com/285/main/result.css");
+
       /* ═══════════════════════════════════════════════════════════
          PureRead - 典雅排版风格 (Elegant Typography)
          设计理念：纸张质感、复古排版、低饱和度配色
@@ -35,8 +37,8 @@
         --shadow-focus: 0 0 0 3px rgba(44, 62, 80, 0.1);
 
         /* 字体栈 */
-        --font-serif: "Georgia", "Source Serif Pro", "Songti SC", serif;
-        --font-sans: "Inter", -apple-system, "Segoe UI", sans-serif;
+        --font-serif: "Noto Serif CJK", "Georgia", "Source Serif Pro", "Songti SC", serif;
+        --font-sans: "Noto Serif CJK", "Inter", -apple-system, "Segoe UI", sans-serif;
         --font-mono: "SF Mono", "Fira Code", "Consolas", monospace;
       }
 
@@ -76,12 +78,13 @@
         width: 340px;
         padding: 24px;
         font-family: var(--font-sans);
+        font-weight: normal;
         background: var(--bg);
         color: var(--text);
         margin: 0;
         line-height: 1.6;
         overflow-x: hidden;
-        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
       }
 
       /* ═══ 头部区域 ═══ */

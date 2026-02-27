@@ -4,6 +4,8 @@
     <meta charset="UTF-8" />
     <title>PureRead 控制中心</title>
     <style>
+      @import url("https://fontsapi.zeoseven.com/285/main/result.css");
+
       /* ═══════════════════════════════════════════════════════════
          PureRead 控制中心 — 现代简约设计
          ═══════════════════════════════════════════════════════════ */
@@ -35,7 +37,7 @@
         --shadow-lg:
           0 8px 32px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04);
 
-        --font: -apple-system, "Segoe UI", sans-serif;
+        --font: "Noto Serif CJK", -apple-system, "Segoe UI", sans-serif;
         --font-mono: "Fira Code", "Consolas", monospace;
       }
 
@@ -91,10 +93,11 @@
         margin: 0;
         padding: 0;
         font-family: var(--font);
+        font-weight: normal;
         background: var(--bg);
         color: var(--text);
         line-height: 1.6;
-        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
         min-height: 100vh;
         position: relative;
         overflow-x: hidden;
