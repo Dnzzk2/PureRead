@@ -9,6 +9,7 @@ async function init() {
   loadData();
   updateStorageInfo();
   bindGlobalEvents();
+  checkUpdates();
 }
 
 // 加载系统字体
@@ -472,6 +473,34 @@ function bindFontDropdowns() {
         dropdown.style.display = "none";
       }, 150);
     });
+  });
+}
+
+function checkUpdates() {
+  const currentVersion = chrome.runtime.getManifest().version;
+  const verSpan = document.getElementById("opt-current-version");
+  if (verSpan) verSpan.innerText = "v" + currentVersion;
+
+  chrome.storage.local.get(["latestRelease", "releaseUrl"], (res) => {
+    if (res.latestRelease) {
+      const parts1 = res.latestRelease.split('.').map(Number);
+      const parts2 = currentVersion.split('.').map(Number);
+      let isNew = false;
+      for (let i = 0; i < Math.max(parts1.length, parts2.length); i++) {
+        const p1 = parts1[i] || 0;
+        const p2 = parts2[i] || 0;
+        if (p1 > p2) { isNew = true; break; }
+        if (p1 < p2) { break; }
+      }
+
+      if (isNew) {
+        document.getElementById("opt-update-badge").style.display = "inline-block";
+        document.getElementById("opt-update-text").innerText = "立即更新 v" + res.latestRelease;
+        if (res.releaseUrl) {
+          document.getElementById("opt-update-link").href = res.releaseUrl;
+        }
+      }
+    }
   });
 }
 

@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <title>PureRead 控制中心</title>
     <style>
-      @import url("https://fontsapi.zeoseven.com/285/main/result.css");
+       @import url("https://fontsapi.zeoseven.com/439/main/result.css");
 
       /* ═══════════════════════════════════════════════════════════
          PureRead 控制中心 — 现代简约设计
@@ -37,8 +37,7 @@
         --shadow-lg:
           0 8px 32px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04);
 
-        --font: "Noto Serif CJK", -apple-system, "Segoe UI", sans-serif;
-        --font-mono: "Fira Code", "Consolas", monospace;
+        --font: "Huiwen-HKHei", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       }
 
       @media (prefers-color-scheme: dark) {
@@ -326,16 +325,17 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 16px 18px;
-        background: var(--surface);
+        padding: 16px 20px;
+        background: var(--card-bg);
         border: 1px solid var(--border);
-        border-radius: var(--radius-sm);
-        transition: all 0.25s ease;
+        border-radius: 8px;
+        transition: all 0.25s cubic-bezier(0.2, 0, 0, 1);
       }
       .scheme-item:hover {
         border-color: var(--border-strong);
-        box-shadow: var(--shadow);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.03);
         transform: translateY(-1px);
+        background: var(--bg);
       }
       .scheme-info {
         flex: 1;
@@ -350,7 +350,7 @@
       .scheme-meta {
         font-size: 12px;
         color: var(--text-muted);
-        font-family: var(--font-mono);
+        font-family: var(--font);
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -364,8 +364,8 @@
 
       /* ═══ 操作 / 图标按钮 ═══ */
       .action-btn {
-        width: 34px;
-        height: 34px;
+        width: 28px;
+        height: 28px;
         border-radius: var(--radius-sm);
         display: flex;
         align-items: center;
@@ -375,6 +375,10 @@
         border: 1px solid var(--border);
         background: var(--card-bg);
         color: var(--text-muted);
+      }
+      .action-btn svg {
+        width: 14px;
+        height: 14px;
       }
       .action-btn:hover {
         background: var(--surface);
@@ -424,6 +428,16 @@
         display: flex;
         flex-direction: column;
         gap: 8px;
+        max-height: 480px;
+        overflow-y: auto;
+        padding-right: 4px;
+      }
+      .site-list::-webkit-scrollbar {
+        width: 4px;
+      }
+      .site-list::-webkit-scrollbar-thumb {
+        background: var(--border-strong);
+        border-radius: 2px;
       }
       .site-row {
         display: flex;
@@ -439,13 +453,13 @@
         border-color: var(--border-strong);
       }
       .site-domain {
-        font-family: var(--font-mono);
+        font-family: var(--font);
         font-weight: 500;
-        font-size: 13px;
+        font-size: 15px;
         color: var(--text);
       }
       .badge {
-        font-family: var(--font-mono);
+        font-family: var(--font);
         font-size: 10px;
         padding: 3px 10px;
         border-radius: 20px;
@@ -503,7 +517,7 @@
       .storage-detail {
         font-size: 12px;
         color: var(--text-muted);
-        font-family: var(--font-mono);
+        font-family: var(--font);
       }
 
       /* ═══ 涟漪效果 ═══ */
@@ -688,7 +702,7 @@
         border: 1px solid var(--border);
         border-radius: var(--radius-sm);
         font-size: 13px;
-        font-family: var(--font-mono);
+        font-family: var(--font);
         color: var(--text);
         box-sizing: border-box;
         outline: none;
@@ -706,7 +720,7 @@
       .textarea-input {
         height: 64px;
         resize: vertical;
-        font-family: var(--font-mono);
+        font-family: var(--font);
         font-size: 12px;
         padding: 12px 14px;
         line-height: 1.6;
@@ -831,7 +845,7 @@
         background: var(--surface);
         padding: 2px 6px;
         border-radius: 4px;
-        font-family: var(--font-mono);
+        font-family: var(--font);
         font-size: 12px;
         border: 1px solid var(--border);
       }
@@ -844,38 +858,10 @@
 
     <div class="container">
       <div class="grid">
-        <!-- ═══ 左栏 ═══ -->
-        <div class="left-col">
-          <!-- 方案管理 -->
-          <div class="section" data-color="blue">
-            <div class="section-header">
-              <h2>
-                <span class="icon-wrap blue">
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <path
-                      d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"
-                    />
-                    <polyline points="17 21 17 13 7 13 7 21" />
-                    <polyline points="7 3 7 8 15 8" />
-                  </svg>
-                </span>
-                存储方案库
-              </h2>
-            </div>
-            <div id="schemes-container" class="scheme-list">
-              <!-- JS Rendering -->
-            </div>
-          </div>
-
+        <!-- ═══ 第一栏：左侧 ═══ -->
+        <div class="left-col" style="display: flex; flex-direction: column; gap: 24px;">
           <!-- 站点管理 -->
-          <div class="section" data-color="green">
+          <div class="section" data-color="green" style="margin-bottom: 0;">
             <div class="section-header">
               <h2>
                 <span class="icon-wrap green">
@@ -900,11 +886,13 @@
             </div>
 
             <div class="notice-card">
-              <h3>管理逻辑</h3>
+              <h3>管理逻辑说明</h3>
               <p>
-                在某个站点手动切换开关或选择"单独定制"时，系统会自动生成记录。<br />
-                <b>白名单：</b>总开关关闭时，<b>ON</b> 站点仍会生效。<br />
-                <b>黑名单：</b>总开关开启时，<b>OFF</b> 站点不再修改字体。
+                在扩展弹窗中，当您在特定网站上<b>切换了“仅此站点”的选项</b>（如：阅读进度条、专注模式），或者选择了<b>“单独定制”字体</b>时，系统都会自动在这里生成一条该站点的专属记录。<br /><br />
+                <b>白名单效应</b>（站点头衔为 <span class="badge badge-custom">ON</span>）：<br />
+                当您关闭了扩展的“总开关”，但该站点在列表中是开启（ON）状态时，扩展字体和阅读效果在<b>这个特定站点仍然会生效</b>。<br /><br />
+                <b>黑名单效应</b>（站点头衔为 <span class="badge badge-off">OFF</span>）：<br />
+                当您开启了扩展的“总开关”，但该站点在列表中是关闭（OFF）状态时，扩展在这个站点将被禁用，<b>恢复原网页原本的显示效果</b>。<br />
               </p>
             </div>
 
@@ -912,115 +900,9 @@
               <!-- JS Rendering -->
             </div>
           </div>
-        </div>
-
-        <!-- ═══ 右栏 ═══ -->
-        <div class="right-col">
-          <!-- 存储容量 -->
-          <div class="section" data-color="amber">
-            <div class="section-header">
-              <h2>
-                <span class="icon-wrap amber">
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <path
-                      d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"
-                    />
-                    <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-                    <line x1="12" y1="22.08" x2="12" y2="12" />
-                  </svg>
-                </span>
-                存储容量
-              </h2>
-            </div>
-            <div class="storage-card">
-              <div class="storage-header">
-                <span>空间占用</span>
-                <span
-                  id="storage-percentage"
-                  style="color: #3b82f6; font-family: var(--font-mono)"
-                  >0%</span
-                >
-              </div>
-              <div class="storage-bar-track">
-                <div id="storage-bar" class="storage-bar-fill"></div>
-              </div>
-              <div id="storage-text" class="storage-detail">载入中...</div>
-            </div>
-          </div>
-
-          <!-- 配置备份 -->
-          <div class="section" data-color="violet">
-            <div class="section-header">
-              <h2>
-                <span class="icon-wrap violet">
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <polyline points="8 17 12 21 16 17" />
-                    <line x1="12" y1="12" x2="12" y2="21" />
-                    <path
-                      d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"
-                    />
-                  </svg>
-                </span>
-                配置备份
-              </h2>
-            </div>
-            <p class="desc">导出所有配置为 JSON 文件，或从备份恢复。</p>
-            <div style="display: flex; flex-direction: column; gap: 8px">
-              <button id="export-config" class="backup-btn export">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2.5"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                  <polyline points="7 10 12 15 17 10" />
-                  <line x1="12" y1="15" x2="12" y2="3" />
-                </svg>
-                导出配置
-              </button>
-              <label class="backup-btn import">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2.5"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                  <polyline points="17 8 12 3 7 8" />
-                  <line x1="12" y1="3" x2="12" y2="15" />
-                </svg>
-                导入配置
-                <input
-                  type="file"
-                  id="import-config"
-                  accept=".json"
-                  style="display: none"
-                />
-              </label>
-            </div>
-          </div>
 
           <!-- CSS 选择器 -->
-          <div class="section" data-color="slate">
+          <div class="section" data-color="slate" style="margin-bottom: 0;">
             <div class="section-header">
               <h2>
                 <span class="icon-wrap slate">
@@ -1101,6 +983,172 @@
                 保存
               </button>
             </div>
+          </div>
+        </div>
+
+        <!-- ═══ 第二栏：右侧 ═══ -->
+        <div class="right-col" style="display: flex; flex-direction: column; gap: 24px;">
+          <!-- 方案管理 -->
+          <div class="section" data-color="blue" style="margin-bottom: 0;">
+            <div class="section-header">
+              <h2>
+                <span class="icon-wrap blue">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path
+                      d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"
+                    />
+                    <polyline points="17 21 17 13 7 13 7 21" />
+                    <polyline points="7 3 7 8 15 8" />
+                  </svg>
+                </span>
+                方案库
+              </h2>
+            </div>
+            <div id="schemes-container" class="scheme-list">
+              <!-- JS Rendering -->
+            </div>
+          </div>
+
+          <!-- 存储容量 -->
+          <div class="section" data-color="amber" style="margin-bottom: 0;">
+            <div class="section-header">
+              <h2>
+                <span class="icon-wrap amber">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path
+                      d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"
+                    />
+                    <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+                    <line x1="12" y1="22.08" x2="12" y2="12" />
+                  </svg>
+                </span>
+                存储记录
+              </h2>
+            </div>
+            <div class="storage-card">
+              <div class="storage-header">
+                <span>占用率</span>
+                <span
+                  id="storage-percentage"
+                  style="color: #3b82f6; font-family: var(--font)"
+                  >0%</span
+                >
+              </div>
+              <div class="storage-bar-track">
+                <div id="storage-bar" class="storage-bar-fill"></div>
+              </div>
+              <div id="storage-text" class="storage-detail">载入中...</div>
+            </div>
+          </div>
+
+          <!-- 配置备份 -->
+          <div class="section" data-color="violet" style="margin-bottom: 0;">
+            <div class="section-header">
+              <h2>
+                <span class="icon-wrap violet">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <polyline points="8 17 12 21 16 17" />
+                    <line x1="12" y1="12" x2="12" y2="21" />
+                    <path
+                      d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"
+                    />
+                  </svg>
+                </span>
+                重置与备份
+              </h2>
+            </div>
+            <p class="desc" style="margin-bottom: 14px">导入、导出或清理配置选项。</p>
+            <div style="display: flex; flex-direction: column; gap: 8px">
+              <button id="export-config" class="backup-btn export">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                导出配置
+              </button>
+              <label class="backup-btn import">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="17 8 12 3 7 8" />
+                  <line x1="12" y1="3" x2="12" y2="15" />
+                </svg>
+                导入配置
+                <input
+                  type="file"
+                  id="import-config"
+                  accept=".json"
+                  style="display: none"
+                />
+              </label>
+            </div>
+          </div>
+
+          <!-- 更新提示 -->
+          <div class="section" data-color="blue" style="margin-bottom: 0;">
+             <div class="section-header">
+              <h2>
+                <span class="icon-wrap blue">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                  </svg>
+                </span>
+                关于 PureRead
+              </h2>
+            </div>
+            <p class="desc" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+              <span>当前版本：<b id="opt-current-version" style="font-family: monospace;">...</b></span>
+              <span id="opt-update-badge" style="display: none; font-size: 11px; padding: 2px 8px; background: #fee2e2; color: #dc2626; border-radius: 12px; font-weight: bold;">发现新版本!</span>
+            </p>
+            <p class="desc" style="margin-bottom: 18px;">保持扩展更新以获取最新的界面优化和阅读增强特性。</p>
+            <a id="opt-update-link" href="https://github.com/Dnzzk2/PureRead/releases" target="_blank" style="text-decoration: none;">
+              <button class="backup-btn export" style="background: var(--accent); width: 100%;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
+                <span id="opt-update-text">检查 GitHub 更新</span>
+              </button>
+            </a>
           </div>
         </div>
       </div>

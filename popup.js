@@ -62,6 +62,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // 首次同步 UI
     await refreshUI(true);
+    checkUpdates();
   };
 
   // 2. 实时同步 UI 函数
@@ -567,5 +568,41 @@ document.addEventListener("DOMContentLoaded", async () => {
       listEl.appendChild(item);
     });
     listEl.style.display = "block";
+  }
+
+  // 检查版本更新
+  function checkUpdates() {
+    const currentVersion = chrome.runtime.getManifest().version;
+    const verBadge = document.getElementById("popup-ver-badge");
+    if (!verBadge) return;
+
+    verBadge.innerText = "v" + currentVersion;
+
+    chrome.storage.local.get(["latestRelease", "releaseUrl"], (res) => {
+      if (res.latestRelease) {
+        const parts1 = res.latestRelease.split('.').map(Number);
+        const parts2 = currentVersion.split('.').map(Number);
+        let isNew = false;
+        for (let i = 0; i < Math.max(parts1.length, parts2.length); i++) {
+          const p1 = parts1[i] || 0;
+          const p2 = parts2[i] || 0;
+          if (p1 > p2) { isNew = true; break; }
+          if (p1 < p2) { break; }
+        }
+
+        if (isNew) {
+          verBadge.innerText = "↑ 更新版本";
+          verBadge.style.background = "#fee2e2";
+          verBadge.style.color = "#dc2626";
+          verBadge.style.borderColor = "#fecaca";
+          verBadge.style.cursor = "pointer";
+          verBadge.title = "有新版本可更新: v" + res.latestRelease;
+          verBadge.onclick = () => {
+            if (res.releaseUrl) window.open(res.releaseUrl, "_blank");
+            else window.open("https://github.com/Dnzzk2/PureRead/releases", "_blank");
+          };
+        }
+      }
+    });
   }
 });

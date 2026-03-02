@@ -86,3 +86,31 @@ chrome.commands.onCommand.addListener(async (command) => {
       break;
   }
 });
+
+// ====== 更新检测逻辑 ======
+function checkForUpdates() {
+  fetch("https://api.github.com/repos/Dnzzk2/PureRead/releases/latest")
+    .then(res => res.json())
+    .then(data => {
+      if (data && data.tag_name) {
+        const latestVersion = data.tag_name.replace(/^v/, '');
+        chrome.storage.local.set({
+          latestRelease: latestVersion,
+          releaseUrl: data.html_url
+        });
+      }
+    })
+    .catch(err => console.log("Check update failed:", err));
+}
+
+// 首次安装或启动时检查
+chrome.runtime.onInstalled.addListener(checkForUpdates);
+chrome.runtime.onStartup.addListener(checkForUpdates);
+
+// 定时任务（每 12 小时检查一次）
+chrome.alarms.create("checkUpdate", { periodInMinutes: 12 * 60 });
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === "checkUpdate") {
+    checkForUpdates();
+  }
+});
