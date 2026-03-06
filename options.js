@@ -3,6 +3,12 @@ let allSchemes = [];
 let allSettings = {};
 let allFonts = []; // 系统字体列表
 
+function escapeHTML(str) {
+  const div = document.createElement("div");
+  div.appendChild(document.createTextNode(str));
+  return div.innerHTML;
+}
+
 // 初始化
 async function init() {
   await loadSystemFonts();
@@ -83,7 +89,7 @@ const modal = {
     this.title.innerText = title || "";
     this.body.innerHTML = body || "";
     this.custom.innerHTML = customHTML || "";
-    this.confirmBtn.innerText = confirmText || "下发";
+    this.confirmBtn.innerText = confirmText || "确定";
     this.confirmBtn.className = isDanger ? "btn btn-danger" : "btn btn-primary";
 
     this.el.style.display = "flex";
@@ -120,13 +126,13 @@ function renderSchemes(schemes) {
     const item = document.createElement("div");
     item.className = "scheme-item";
 
-    const standard = s.mapping.standard || "系统默认";
-    const mono = s.mapping.mono || "系统默认等宽";
+    const standard = escapeHTML(s.mapping.standard || "系统默认");
+    const mono = escapeHTML(s.mapping.mono || "系统默认等宽");
 
     item.innerHTML = `
       <div class="scheme-info">
-        <div class="scheme-title">${s.name}</div>
-        <div class="scheme-meta">标准: ${standard} · 等宽: ${mono} · 字号: ${s.typo.fontSize}%</div>
+        <div class="scheme-title">${escapeHTML(s.name)}</div>
+        <div class="scheme-meta">标准: ${standard} · 等宽: ${mono} · 字号: ${escapeHTML(String(s.typo.fontSize))}%</div>
       </div>
       <div class="scheme-actions">
         <button class="action-btn edit-btn" title="编辑名称和详情">
@@ -146,7 +152,7 @@ function renderSchemes(schemes) {
         customHTML: `
           <div class="form-group">
             <label class="form-label">方案名称</label>
-            <input type="text" id="edit-name" class="form-input" value="${s.name}" maxlength="12">
+            <input type="text" id="edit-name" class="form-input" value="${escapeHTML(s.name)}" maxlength="12">
           </div>
           <table style="width: 100%; border-collapse: collapse; margin-top: 16px;">
             <thead>
@@ -160,7 +166,7 @@ function renderSchemes(schemes) {
                 <td style="padding: 12px 0; font-size: 14px; font-weight: 600;">标准字体</td>
                 <td style="padding: 12px 0;">
                   <div class="font-input-wrapper">
-                    <input type="text" id="edit-std" class="form-input font-edit-input" style="margin: 0;" value="${s.mapping.standard || ""}" placeholder="输入或选择字体" autocomplete="off">
+                    <input type="text" id="edit-std" class="form-input font-edit-input" style="margin: 0;" value="${escapeHTML(s.mapping.standard || "")}" placeholder="输入或选择字体" autocomplete="off">
                     <div class="font-dropdown" id="dropdown-std"></div>
                   </div>
                 </td>
@@ -169,7 +175,7 @@ function renderSchemes(schemes) {
                 <td style="padding: 12px 0; font-size: 14px; font-weight: 600;">等宽字体</td>
                 <td style="padding: 12px 0;">
                   <div class="font-input-wrapper">
-                    <input type="text" id="edit-mono" class="form-input font-edit-input" style="margin: 0;" value="${s.mapping.mono || ""}" placeholder="输入或选择字体" autocomplete="off">
+                    <input type="text" id="edit-mono" class="form-input font-edit-input" style="margin: 0;" value="${escapeHTML(s.mapping.mono || "")}" placeholder="输入或选择字体" autocomplete="off">
                     <div class="font-dropdown" id="dropdown-mono"></div>
                   </div>
                 </td>
@@ -178,7 +184,7 @@ function renderSchemes(schemes) {
                 <td style="padding: 12px 0; font-size: 14px; font-weight: 600;">数学公式</td>
                 <td style="padding: 12px 0;">
                   <div class="font-input-wrapper">
-                    <input type="text" id="edit-math" class="form-input font-edit-input" style="margin: 0;" value="${s.mapping.math || ""}" placeholder="输入或选择字体" autocomplete="off">
+                    <input type="text" id="edit-math" class="form-input font-edit-input" style="margin: 0;" value="${escapeHTML(s.mapping.math || "")}" placeholder="输入或选择字体" autocomplete="off">
                     <div class="font-dropdown" id="dropdown-math"></div>
                   </div>
                 </td>
@@ -216,7 +222,7 @@ function renderSchemes(schemes) {
     item.querySelector(".del-btn").onclick = () => {
       modal.show({
         title: "确认删除？",
-        body: `确定要彻底删除配置方案 "${s.name}" 吗？此操作无法撤销。`,
+        body: `确定要彻底删除配置方案「${escapeHTML(s.name)}」吗？此操作无法撤销。`,
         confirmText: "立即删除",
         isDanger: true,
         onConfirm: () => {
@@ -255,7 +261,7 @@ function renderSites(sites) {
     const badgeClass = sites[d].on ? "badge-custom" : "badge-off";
 
     row.innerHTML = `
-      <div class="site-domain">${d}</div>
+      <div class="site-domain">${escapeHTML(d)}</div>
       <div style="display:flex; align-items:center; gap:16px;">
         <span class="badge ${badgeClass}">${statusText}</span>
         <button class="action-btn del site-del" title="移除并恢复默认">

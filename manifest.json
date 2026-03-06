@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "PureRead",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "description": "提升网页阅读体验：字体替换、排版调节、阅读进度、专注模式",
     "permissions": [
         "storage",
@@ -47,7 +47,7 @@
                 "default": "Alt+Shift+D",
                 "mac": "Alt+Shift+D"
             },
-            "description": "切换强制暗色模式"
+            "description": "切换智能暗色模式"
         },
         "toggle-reading-time": {
             "suggested_key": {

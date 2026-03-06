@@ -15,7 +15,7 @@ PureRead 是一款专注于提升网页阅读体验的浏览器扩展（Chrome/E
 
 ### Firefox 浏览器 (通过 CRX Installer)
 
-1. 在 Firefox 浏览器中，安装并启用 [CRX Installer](https://addons.mozilla.org/zh-CN/firefox/addon/crx-installer/) 扩展（或其他可以将 Chrome 扩展转换为 Firefox 格式的工具）。
+1. 在 Firefox 浏览器中，安装并启用 [CRX Installer](https://addons.mozilla.org/en-US/firefox/addon/crxinstaller/) 扩展（或其他可以将 Chrome 扩展转换为 Firefox 格式的工具）。
 2. 打包本扩展为 `.crx` 或直接打为 `.zip` 包。
 3. 使用 CRX Installer 加载并安装，以在 Firefox 内核中使用。
 

@@ -11,7 +11,7 @@ def build_release():
     # 包含文件列表
     include_files = [
         'manifest.json', 'background.js', 'content.js', 'popup.js', 
-        'shared.js', 'popup.html', 'options.html', 'icon.png'
+        'shared.js', 'popup.html', 'options.html', 'options.js', 'icon.png'
     ]
     
     output_filename = f'PureRead-v{version}.zip'

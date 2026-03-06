@@ -262,18 +262,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     };
   }
 
-  // 移除已转移到 Options 的逻辑
-  const btnResetSites = document.getElementById("btn-reset-sites");
-  if (btnResetSites) {
-    btnResetSites.onclick = () => {
-      if (confirm("确定清空所有特定站点的自定义配置吗？")) {
-        data.sites = {};
-        saveData();
-        window.location.reload();
-      }
-    };
-  }
-
   function updateTypoLabel(input) {
     const key = input.dataset.key;
     const val = input.value;
@@ -365,7 +353,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
   if (els.shortcutsConfigBtn) {
     els.shortcutsConfigBtn.addEventListener("click", () => {
-      chrome.tabs.create({ url: "chrome://extensions/shortcuts" });
+      const isEdge = navigator.userAgent.includes("Edg/");
+      const url = isEdge
+        ? "edge://extensions/shortcuts"
+        : "chrome://extensions/shortcuts";
+      chrome.tabs.create({ url });
     });
   }
 
@@ -449,11 +441,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   const presetInput = document.getElementById("new-preset-name");
   const btnSavePreset = document.getElementById("btn-save-preset");
 
-  const loadSchemes = () => {
-    chrome.storage.sync.get(["schemes"], (res) => {
-      const schemes = res.schemes || [];
-      renderSchemes(schemes);
-    });
+  const loadSchemes = async () => {
+    const res = await Storage.get(["schemes"]);
+    renderSchemes(res.schemes || []);
   };
 
   const renderSchemes = (schemes) => {
@@ -466,8 +456,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     schemes.forEach((s, index) => {
       const item = document.createElement("div");
       item.className = "preset-item";
+      const escapedName = document.createElement("span");
+      escapedName.textContent = s.name;
       item.innerHTML = `
-        <span class="name">${s.name}</span>
+        <span class="name">${escapedName.innerHTML}</span>
         <div class="preset-del" data-index="${index}" title="删除方案">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
         </div>
@@ -508,12 +500,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   };
 
-  const deleteScheme = (index) => {
-    chrome.storage.sync.get(["schemes"], (res) => {
-      const schemes = res.schemes || [];
-      schemes.splice(index, 1);
-      chrome.storage.sync.set({ schemes }, loadSchemes);
-    });
+  const deleteScheme = async (index) => {
+    const res = await Storage.get(["schemes"]);
+    const schemes = res.schemes || [];
+    schemes.splice(index, 1);
+    await Storage.set({ schemes });
+    loadSchemes();
   };
 
   btnSavePreset.addEventListener("click", () => {
@@ -529,13 +521,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     const currentTypo = {};
     els.typoRanges.forEach((r) => (currentTypo[r.dataset.key] = r.value));
 
-    chrome.storage.sync.get(["schemes"], (res) => {
+    Storage.get(["schemes"]).then(async (res) => {
       const schemes = res.schemes || [];
       schemes.push({ name, mapping: currentMapping, typo: currentTypo });
-      chrome.storage.sync.set({ schemes }, () => {
-        presetInput.value = "";
-        loadSchemes();
-      });
+      await Storage.set({ schemes });
+      presetInput.value = "";
+      loadSchemes();
     });
   });
 

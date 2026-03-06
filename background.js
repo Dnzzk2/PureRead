@@ -39,7 +39,9 @@ chrome.commands.onCommand.addListener(async (command) => {
             action: "updateFeatures",
             settings,
           });
-        } catch (e) {}
+        } catch (e) {
+          console.warn("[PureRead] sendMessage failed:", e.message);
+        }
       }
       break;
 
@@ -54,7 +56,9 @@ chrome.commands.onCommand.addListener(async (command) => {
             action: "updateFeatures",
             settings,
           });
-        } catch (e) {}
+        } catch (e) {
+          console.warn("[PureRead] sendMessage failed:", e.message);
+        }
       }
       break;
 
@@ -68,7 +72,9 @@ chrome.commands.onCommand.addListener(async (command) => {
           action: "updateFeatures",
           settings,
         });
-      } catch (e) {}
+      } catch (e) {
+        console.warn("[PureRead] sendMessage failed:", e.message);
+      }
       break;
 
     case "toggle-reading-time":
@@ -82,7 +88,9 @@ chrome.commands.onCommand.addListener(async (command) => {
           action: "updateFeatures",
           settings,
         });
-      } catch (e) {}
+      } catch (e) {
+        console.warn("[PureRead] sendMessage failed:", e.message);
+      }
       break;
   }
 });

@@ -1,15 +1,20 @@
 // 初始加载
 chrome.storage.sync.get(["settings"], (result) => {
   if (result.settings) {
+    window.prSettings = result.settings;
     updateContentStyles(result.settings);
     updateFeatures(result.settings);
   }
 });
 
-// 监听来自 Popup 的实时更新消息（当前 tab）
+// 监听来自 Popup / Background 的消息（统一入口）
 chrome.runtime.onMessage.addListener((request) => {
-  if (request.action === "updateStyles" && request.settings) {
+  if (!request.settings) return;
+  window.prSettings = request.settings;
+  if (request.action === "updateStyles") {
     updateContentStyles(request.settings);
+  } else if (request.action === "updateFeatures") {
+    updateFeatures(request.settings);
   }
 });
 
@@ -27,6 +32,7 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
     currentSettingsStr = newSettingsStr;
 
     if (newSettings) {
+      window.prSettings = newSettings;
       updateContentStyles(newSettings);
       updateFeatures(newSettings);
     }
@@ -413,12 +419,11 @@ function updateFeatures(settings) {
     disableFocusMode();
   }
 
-  // 强制暗色模式
+  // 智能暗色模式
   const forceDark = features.forceDark ?? false;
-  const isDarkApplied = !!document.getElementById("pure-read-dark-mode");
   if (forceDark) {
-    if (!isDarkApplied) enableDarkMode();
-  } else if (isDarkApplied) {
+    if (!isDarkModeApplied()) enableDarkMode();
+  } else if (isDarkModeApplied()) {
     disableDarkMode();
   }
 
@@ -431,28 +436,28 @@ function updateFeatures(settings) {
   }
 }
 
-// 监听来自 Popup 的功能更新消息
-chrome.runtime.onMessage.addListener((request) => {
-  if (request.action === "updateFeatures" && request.settings) {
-    updateFeatures(request.settings);
-  }
-});
 
 // ═══════════════════════════════════════════════════════════
-// 强制暗色模式 (Force Dark Mode)
+// 智能暗色模式 (Smart Dark Mode)
+// 策略：多维度检测网站原生暗色支持，优先触发原生暗色，不支持时才 fallback
+// 检测优先级：
+//   1. HTML/body 上已有的主题属性（data-theme 等）
+//   2. CSS 中的 class-based 暗色模式（.dark, .dark-mode 等）
+//   3. CSS 中的 attribute-based 暗色模式（[data-theme="dark"] 等）
+//   4. @media (prefers-color-scheme: dark) 媒体查询
+//   5. CSS filter 反转（兜底方案）
 // ═══════════════════════════════════════════════════════════
 
-// 判断这是否是一个暗色页面
+let _prDarkState = null;
+
 function isDarkPage() {
-  const bgColor = getComputedStyle(document.body).backgroundColor;
-  const htmlColor = getComputedStyle(document.documentElement).backgroundColor;
+  if (!document.body) return false;
 
   const isDark = (color) => {
     if (!color || color === "rgba(0, 0, 0, 0)" || color === "transparent")
       return false;
     const rgb = color.match(/\d+/g);
     if (!rgb) return false;
-    // 简单亮度公式
     const brightness =
       (parseInt(rgb[0]) * 299 +
         parseInt(rgb[1]) * 587 +
@@ -461,71 +466,288 @@ function isDarkPage() {
     return brightness < 128;
   };
 
+  const bgColor = getComputedStyle(document.body).backgroundColor;
+  const htmlColor = getComputedStyle(document.documentElement).backgroundColor;
   return isDark(bgColor) || isDark(htmlColor);
 }
 
-function enableDarkMode() {
-  if (document.getElementById("pure-read-dark-mode")) return;
+// ─── 样式表遍历工具 ───
 
-  // 如果页面本身已经是暗色背景，就不需要反转了
-  if (isDarkPage()) {
-    console.log("[PureRead] 页面已是暗色，跳过处理");
-    return;
+function forEachStyleRule(callback) {
+  function walk(rules) {
+    for (const rule of rules) {
+      if (rule.type === 1) callback(rule);
+      else if (rule.cssRules) walk(rule.cssRules);
+    }
+  }
+  for (const sheet of document.styleSheets) {
+    try {
+      if (!sheet.cssRules) continue;
+      walk(sheet.cssRules);
+    } catch (_) {}
+  }
+}
+
+function countRulesMatching(regex) {
+  let count = 0;
+  forEachStyleRule((rule) => {
+    if (regex.test(rule.selectorText || "")) count++;
+  });
+  return count;
+}
+
+function collectMediaDarkRules() {
+  const darkCssTexts = [];
+
+  function processRules(rules) {
+    for (const rule of rules) {
+      if (rule instanceof CSSMediaRule) {
+        const condText = rule.conditionText || rule.media.mediaText || "";
+        if (
+          condText.includes("prefers-color-scheme") &&
+          condText.includes("dark")
+        ) {
+          for (const innerRule of rule.cssRules) {
+            darkCssTexts.push(innerRule.cssText);
+          }
+        } else {
+          processRules(rule.cssRules);
+        }
+      } else if (rule.cssRules) {
+        processRules(rule.cssRules);
+      }
+    }
   }
 
-  const style = document.createElement("style");
-  style.id = "pure-read-dark-mode";
-  style.textContent = `
-  /* 核心反转：高对比度，强力反转 */
-    html {
-      filter: invert(1) hue-rotate(180deg) !important;
+  for (const sheet of document.styleSheets) {
+    try {
+      const rules = sheet.cssRules || sheet.rules;
+      if (!rules) continue;
+      processRules(rules);
+    } catch (_) {}
+  }
+
+  return darkCssTexts;
+}
+
+// ─── 多策略检测 ───
+
+const THEME_ATTRS = [
+  "data-theme",
+  "data-color-scheme",
+  "data-color-mode",
+  "data-bs-theme",
+  "data-mode",
+  "data-appearance",
+  "data-dark",
+  "data-scheme",
+];
+
+const DARK_CLASSES = [
+  "dark",
+  "dark-mode",
+  "dark-theme",
+  "theme-dark",
+  "night-mode",
+  "night",
+  "darkmode",
+  "nightmode",
+];
+
+function detectNativeDarkMode() {
+  const el = document.documentElement;
+  const body = document.body;
+
+  // ── Strategy 1: HTML/body 上已存在主题属性（最强信号） ──
+  // 如果页面已经使用 data-theme="light" 之类的属性，说明站点有主题切换机制
+  for (const attr of THEME_ATTRS) {
+    for (const target of [el, body]) {
+      if (!target) continue;
+      const val = target.getAttribute(attr);
+      if (val === null || val === "dark") continue;
+      const regex = new RegExp(
+        `\\[${attr}[~|^$*]?=["']?dark(?:["']\\]|\\])`
+      );
+      if (countRulesMatching(regex) >= 2) {
+        return {
+          method: "attr",
+          key: attr,
+          value: "dark",
+          target,
+          originalValue: val,
+        };
+      }
     }
+  }
 
-    /* 净化页面：去除反转后产生的杂乱光晕和线条 */
-    * {
-      box-shadow: none !important;
-      text-shadow: none !important;
-      /* 尝试让边框颜色变暗，减少刺眼线条，但保留布局结构 */
-      /* border-color: rgba(255, 255, 255, 0.2) !important; 可选 */
+  // ── Strategy 2: CSS class-based 暗色模式 ──
+  // 扫描样式表中 .dark / .dark-mode / .dark-theme 等选择器
+  let bestClass = null,
+    bestCount = 0;
+  for (const cls of DARK_CLASSES) {
+    const escaped = cls.replace(/-/g, "\\-");
+    const regex = new RegExp(`\\.${escaped}(?![a-zA-Z0-9_-])`);
+    const count = countRulesMatching(regex);
+    if (count > bestCount) {
+      bestCount = count;
+      bestClass = cls;
     }
+  }
+  if (bestClass && bestCount >= 3) {
+    return { method: "class", key: bestClass, ruleCount: bestCount };
+  }
 
-    /* ═══ 媒体保护区：恢复被反转的元素 ═══ */
-    
-    /* 1. 基础媒体元素 */
-    img, video, iframe, canvas, object, embed, picture, source, svg image {
-      filter: invert(1) hue-rotate(180deg) !important;
+  // ── Strategy 3: CSS attribute-based 暗色模式（属性尚未出现在 DOM 上） ──
+  for (const attr of THEME_ATTRS) {
+    if (el.hasAttribute(attr) || body?.hasAttribute(attr)) continue;
+    const regex = new RegExp(`\\[${attr}[~|^$*]?=["']?dark(?:["']\\]|\\])`);
+    const count = countRulesMatching(regex);
+    if (count >= 3) {
+      return {
+        method: "attr",
+        key: attr,
+        value: "dark",
+        target: el,
+        originalValue: null,
+      };
     }
+  }
 
-    /* 2. 背景图片容器 (尝试捕获) */
-    [style*="background-image"]:not([style*="gradient"]),
-    [class*="hero"], [class*="banner"], [class*="cover"],
-    [class*="avatar"], [class*="Avatar"],
-    [class*="logo"], [class*="Logo"],
-    [class*="icon"], [class*="Icon"] {
-      filter: invert(1) hue-rotate(180deg) !important;
+  // ── Strategy 4: @media (prefers-color-scheme: dark) ──
+  const mediaRules = collectMediaDarkRules();
+  if (mediaRules.length >= 2) {
+    return { method: "media", cssTexts: mediaRules };
+  }
+
+  return null;
+}
+
+// ─── 暗色模式启用 / 关闭 ───
+
+function enableDarkMode() {
+  if (isDarkModeApplied()) return;
+
+  if (isDarkPage()) return;
+
+  const detection = detectNativeDarkMode();
+
+  if (detection) {
+    switch (detection.method) {
+      case "attr":
+        _prDarkState = {
+          method: "attr",
+          key: detection.key,
+          target: detection.target,
+          originalValue: detection.originalValue,
+        };
+        detection.target.setAttribute(detection.key, detection.value);
+        break;
+
+      case "class":
+        _prDarkState = { method: "class", key: detection.key };
+        document.documentElement.classList.add(detection.key);
+        break;
+
+      case "media": {
+        _prDarkState = { method: "media" };
+        const style = document.createElement("style");
+        style.id = "pure-read-dark-native";
+        style.textContent = detection.cssTexts.join("\n");
+        document.documentElement.appendChild(style);
+        document.documentElement.style.colorScheme = "dark";
+        break;
+      }
     }
+  } else {
+    _prDarkState = { method: "filter" };
+    const style = document.createElement("style");
+    style.id = "pure-read-dark-mode";
+    style.textContent = `
+      html {
+        filter: invert(1) hue-rotate(180deg) !important;
+      }
+      * {
+        box-shadow: none !important;
+        text-shadow: none !important;
+      }
 
-    /* 3. 防止 SVG 自身被反转（如果它作为图标） */
-    /* 注意：svg image 已经被上面的规则覆盖，这里处理纯 SVG 矢量图 */
-    /* 通常 SVG 图标是单色的，反转后变色正好。但如果是多彩 SVG，可能需要保护 */
-    /* 这里我们保持默认反转，因为 SVG 图标通常需要随文字颜色变化 */
+      img,
+      video,
+      iframe,
+      canvas,
+      object,
+      embed,
+      picture,
+      picture > source,
+      figure > img,
+      svg image,
+      input[type="image"],
+      [role="img"] {
+        filter: invert(1) hue-rotate(180deg) !important;
+      }
 
-    /* 4. 特殊处理：有些元素虽然有背景图，但也包含文字，如果反转回来，文字会再次反转成黑色（看不清） */
-    /* 这是一个两难，但为了图片正常，优先保护背景图容器。 */
-    /* 如果背景图容器里的文字看不清，可以尝试给文字再次反转（三重反转=反转）... 不，这太复杂了 */
-
-    /* 强力背景修正：确保网页背景是深色的 */
-    /* 
-       由于 html 已经被 invert(1)，如果原网页背景是白(#fff)，现在是黑(#000)。
-       如果原网页背景是浅灰(#eee)，现在是深灰(#111)。
-       这是符合预期的。
-    */
-  `;
-  document.documentElement.appendChild(style);
+      [style*="background-image"]:not([style*="gradient"]),
+      [class*="hero"], [class*="banner"], [class*="cover"],
+      [class*="thumb"], [class*="Thumb"],
+      [class*="avatar"], [class*="Avatar"],
+      [class*="logo"], [class*="Logo"],
+      [class*="icon"], [class*="Icon"],
+      [class*="photo"], [class*="Photo"],
+      [class*="image"], [class*="Image"],
+      [class*="poster"], [class*="Poster"],
+      [class*="carousel"], [class*="gallery"],
+      [class*="media"] > img,
+      [class*="figure"] > img {
+        filter: invert(1) hue-rotate(180deg) !important;
+      }
+    `;
+    document.documentElement.appendChild(style);
+  }
 }
 
 function disableDarkMode() {
-  document.getElementById("pure-read-dark-mode")?.remove();
+  if (!_prDarkState) {
+    document.getElementById("pure-read-dark-mode")?.remove();
+    document.getElementById("pure-read-dark-native")?.remove();
+    document.documentElement.style.colorScheme = "";
+    return;
+  }
+
+  switch (_prDarkState.method) {
+    case "attr":
+      if (_prDarkState.originalValue !== null) {
+        _prDarkState.target.setAttribute(
+          _prDarkState.key,
+          _prDarkState.originalValue
+        );
+      } else {
+        _prDarkState.target.removeAttribute(_prDarkState.key);
+      }
+      break;
+
+    case "class":
+      document.documentElement.classList.remove(_prDarkState.key);
+      break;
+
+    case "media":
+      document.getElementById("pure-read-dark-native")?.remove();
+      document.documentElement.style.colorScheme = "";
+      break;
+
+    case "filter":
+      document.getElementById("pure-read-dark-mode")?.remove();
+      break;
+  }
+
+  _prDarkState = null;
+}
+
+function isDarkModeApplied() {
+  return (
+    _prDarkState !== null ||
+    !!document.getElementById("pure-read-dark-mode") ||
+    !!document.getElementById("pure-read-dark-native")
+  );
 }
 
 // ═══════════════════════════════════════════════════════════
