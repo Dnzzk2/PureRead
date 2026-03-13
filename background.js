@@ -18,6 +18,27 @@ chrome.commands.onCommand.addListener(async (command) => {
   if (settings.global.shortcutsEnabled === false) return;
 
   switch (command) {
+    case "toggle-progress-bar":
+      if (!settings.global.features) settings.global.features = {};
+      if (!settings.global.features.progressBar) {
+        settings.global.features.progressBar = {
+          enabled: false,
+          color: "#10b981",
+        };
+      }
+      settings.global.features.progressBar.enabled =
+        !settings.global.features.progressBar.enabled;
+      await chrome.storage.sync.set({ settings });
+      try {
+        await chrome.tabs.sendMessage(tab.id, {
+          action: "updateFeatures",
+          settings,
+        });
+      } catch (e) {
+        console.warn("[PureRead] sendMessage failed:", e.message);
+      }
+      break;
+
     case "toggle-extension":
       // 切换当前站点的开关状态
       if (domain) {

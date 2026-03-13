@@ -28,31 +28,34 @@
         }
     ],
     "commands": {
+        "toggle-progress-bar": {
+            "description": "切换阅读进度条"
+        },
         "toggle-extension": {
             "suggested_key": {
-                "default": "Alt+Shift+P",
-                "mac": "Alt+Shift+P"
+                "default": "Ctrl+Shift+7",
+                "mac": "Command+Shift+7"
             },
             "description": "开关当前站点"
         },
         "toggle-focus-mode": {
             "suggested_key": {
-                "default": "Alt+Shift+F",
-                "mac": "Alt+Shift+F"
+                "default": "Ctrl+Shift+8",
+                "mac": "Command+Shift+8"
             },
             "description": "切换专注模式"
         },
         "toggle-dark-mode": {
             "suggested_key": {
-                "default": "Alt+Shift+D",
-                "mac": "Alt+Shift+D"
+                "default": "Ctrl+Shift+9",
+                "mac": "Command+Shift+9"
             },
             "description": "切换智能暗色模式"
         },
         "toggle-reading-time": {
             "suggested_key": {
-                "default": "Alt+Shift+R",
-                "mac": "Alt+Shift+R"
+                "default": "Ctrl+Shift+0",
+                "mac": "Command+Shift+0"
             },
             "description": "切换阅读时间显示"
         }

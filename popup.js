@@ -1,6 +1,34 @@
 // 使用 shared.js 中的 DEFAULT_MAPPING 和 DEFAULT_TYPO
 
 document.addEventListener("DOMContentLoaded", async () => {
+  const SHORTCUT_ITEMS = [
+    {
+      command: "toggle-progress-bar",
+      label: "阅读进度条",
+      fallback: "",
+    },
+    {
+      command: "toggle-extension",
+      label: "开关站点",
+      fallback: "Ctrl+Shift+7",
+    },
+    {
+      command: "toggle-focus-mode",
+      label: "专注模式",
+      fallback: "Ctrl+Shift+8",
+    },
+    {
+      command: "toggle-dark-mode",
+      label: "暗色模式",
+      fallback: "Ctrl+Shift+9",
+    },
+    {
+      command: "toggle-reading-time",
+      label: "阅读时间",
+      fallback: "Ctrl+Shift+0",
+    },
+  ];
+
   const els = {
     globalSwitch: document.getElementById("global-switch"),
     siteSwitch: document.getElementById("site-switch"),
@@ -24,6 +52,95 @@ document.addEventListener("DOMContentLoaded", async () => {
     shortcutsSwitch: document.getElementById("shortcuts-enabled"),
     shortcutsConfigBtn: document.getElementById("configure-shortcuts"),
   };
+
+  function formatShortcutToken(token) {
+    const tokenMap = {
+      Command: "⌘",
+      Ctrl: "Ctrl",
+      Shift: "⇧",
+      Alt: "Alt",
+      Option: "⌥",
+      MacCtrl: "⌃",
+    };
+    return tokenMap[token] || token;
+  }
+
+  function renderShortcutKeys(shortcut) {
+    if (!shortcut) {
+      return '<span class="shortcuts-hint">未分配</span>';
+    }
+
+    return shortcut
+      .split("+")
+      .map((part) => `<kbd>${formatShortcutToken(part)}</kbd>`)
+      .join("");
+  }
+
+  function renderShortcutList(items) {
+    const listContainer = document.getElementById("shortcuts-list-container");
+    if (!listContainer) return;
+
+    listContainer.innerHTML = items
+      .map(({ label, shortcut }) => {
+        return `
+          <div class="shortcut-item">
+            <span>${label}</span>
+            <div class="shortcut-keys">
+              ${renderShortcutKeys(shortcut)}
+            </div>
+          </div>
+        `;
+      })
+      .join("");
+  }
+
+  async function renderShortcuts() {
+    try {
+      if (!chrome.commands || typeof chrome.commands.getAll !== "function") {
+        renderShortcutList(
+          SHORTCUT_ITEMS.map(({ label, fallback }) => ({
+            label,
+            shortcut: fallback,
+          })),
+        );
+        return;
+      }
+
+      const commands = await new Promise((resolve, reject) => {
+        try {
+          chrome.commands.getAll((items) => {
+            const error = chrome.runtime?.lastError;
+            if (error) {
+              reject(new Error(error.message));
+              return;
+            }
+            resolve(Array.isArray(items) ? items : []);
+          });
+        } catch (error) {
+          reject(error);
+        }
+      });
+
+      const commandMap = new Map(commands.map((item) => [item.name, item]));
+      renderShortcutList(
+        SHORTCUT_ITEMS.map(({ command, label, fallback }) => {
+          const commandInfo = commandMap.get(command);
+          return {
+            label,
+            shortcut: commandInfo ? commandInfo.shortcut : fallback,
+          };
+        }),
+      );
+    } catch (error) {
+      console.warn("[PureRead] render shortcuts failed:", error);
+      renderShortcutList(
+        SHORTCUT_ITEMS.map(({ label, fallback }) => ({
+          label,
+          shortcut: fallback,
+        })),
+      );
+    }
+  }
 
   // 核心变量
   let domain = "";
@@ -138,6 +255,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
 
   await init();
+  renderShortcuts();
 
   // 核心保存逻辑
   const _saveDataCore = async () => {

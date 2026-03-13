@@ -46,10 +46,12 @@ PureRead 是一款专注于提升网页阅读体验的浏览器扩展（Chrome/E
     - **阅读时间估算**：自动计算正文字数，显示预计阅读时间（中文 400字/分钟，英文 200词/分钟）。
 
 5. **快捷键支持 (Keyboard Shortcuts)**
-    - `Alt+Shift+P`：开关当前站点
-    - `Alt+Shift+F`：切换专注模式
-    - `Alt+Shift+D`：切换暗色模式
-    - `Alt+Shift+R`：切换阅读时间显示
+    - `Ctrl+Shift+7` / `Command+Shift+7`：开关当前站点
+    - `Ctrl+Shift+8` / `Command+Shift+8`：切换专注模式
+    - `Ctrl+Shift+9` / `Command+Shift+9`：切换暗色模式
+    - `Ctrl+Shift+0` / `Command+Shift+0`：切换阅读时间显示
+    - 阅读进度条命令默认不绑定快捷键，可在 `chrome://extensions/shortcuts` 或 `edge://extensions/shortcuts` 中手动分配
+    - 如有自己的键位偏好，仍可在 `chrome://extensions/shortcuts` 或 `edge://extensions/shortcuts` 中自定义
 
 6. **构建与发布 (Build & Release)**
     - 项目内置了 `build.py` 自动化脚本。
