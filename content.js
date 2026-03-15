@@ -78,6 +78,14 @@ function applyStyles(mapping, typo, selectors) {
     name ? `font-family: "${name}", ${fallback} !important;` : "";
   const scale = typo.fontSize / 100;
   const typoOn = typo.enabled !== false;
+  const buildNotChain = (targets, excludeDescendants = false) =>
+    targets
+      .flatMap((target) =>
+        excludeDescendants
+          ? [`:not(${target})`, `:not(${target} *)`]
+          : [`:not(${target})`]
+      )
+      .join("");
 
   const getExtra = (key) => {
     const raw =
@@ -98,8 +106,34 @@ function applyStyles(mapping, typo, selectors) {
   };
 
   // 排除规则
+  const iconTargets = [
+    "i",
+    '[role="img"]',
+  ];
+  const iconContainers = [
+    ".fa",
+    ".fas",
+    ".far",
+    ".fab",
+    ".fal",
+    ".fad",
+    ".fat",
+    ".glyphicon",
+    ".iconfont",
+    '[class*="icon"]',
+    '[class*="Icon"]',
+    '[class*="symbol"]',
+    '[class*="Symbol"]',
+    ".google-symbols",
+    '[class*="material-icon"]',
+    '[class*="material-symbol"]',
+    '[class*="codicon"]',
+    '[class*="lucide"]',
+    "[data-icon]",
+  ];
   const exclude = {
-    icon: ':not(.fa):not(.fas):not(.far):not(.fab):not(.glyphicon):not(.iconfont):not([class*="icon"]):not(i)',
+    icon:
+      buildNotChain(iconTargets) + buildNotChain(iconContainers, true),
     code: ':not(pre):not(pre *):not(code):not(code *):not(kbd):not(samp):not([class*="pl-"]):not([class*="blob-code"]):not([class*="highlight"])',
     media:
       ":not(video):not(iframe):not(canvas):not(svg):not(svg *):not(img):not(audio)",
@@ -122,9 +156,10 @@ function applyStyles(mapping, typo, selectors) {
       typoOn
         ? `
     /* 行高 */
-    p, span, div${exclude.player}:not([class*="danmaku"]):not([class*="bpx"]),
-    li, td, th, label, a, h1, h2, h3, h4, h5, h6,
-    article, section, aside, main, blockquote, figcaption {
+    p${exclude.icon}, span${exclude.icon}, div${exclude.player}${exclude.icon}:not([class*="danmaku"]):not([class*="bpx"]),
+    li${exclude.icon}, td${exclude.icon}, th${exclude.icon}, label${exclude.icon}, a${exclude.icon},
+    h1${exclude.icon}, h2${exclude.icon}, h3${exclude.icon}, h4${exclude.icon}, h5${exclude.icon}, h6${exclude.icon},
+    article${exclude.icon}, section${exclude.icon}, aside${exclude.icon}, main${exclude.icon}, blockquote${exclude.icon}, figcaption${exclude.icon} {
       line-height: var(--pr-lh) !important;
     }
 
@@ -132,8 +167,8 @@ function applyStyles(mapping, typo, selectors) {
     ${
       scale !== 1
         ? `
-    p, span${exclude.player}:not([class*="time"]):not([class*="duration"]),
-    li, td, th, article, blockquote, figcaption {
+    p${exclude.icon}, span${exclude.player}${exclude.icon}:not([class*="time"]):not([class*="duration"]),
+    li${exclude.icon}, td${exclude.icon}, th${exclude.icon}, article${exclude.icon}, blockquote${exclude.icon}, figcaption${exclude.icon} {
       font-size: calc(1em * var(--pr-fs)) !important;
     }`
         : ""
@@ -145,12 +180,12 @@ function applyStyles(mapping, typo, selectors) {
         ? parseInt(typo.fontWeight) > 0
           ? `
     /* 正值：使用 text-stroke 加粗 */
-    body *:not([class*="icon"]):not(i)${exclude.media} {
+    body *${exclude.icon}${exclude.media} {
       -webkit-text-stroke-width: ${typo.fontWeight / 500}px;
     }`
           : `
     /* 负值：使用 font-weight 减细 + letter-spacing 视觉优化 */
-    body *:not([class*="icon"]):not(i)${exclude.media}:not(h1):not(h2):not(h3) {
+    body *${exclude.icon}${exclude.media}:not(h1):not(h2):not(h3) {
       font-weight: lighter !important;
       letter-spacing: ${Math.abs(parseInt(typo.fontWeight)) / 400}px;
     }`
