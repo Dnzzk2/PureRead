@@ -201,6 +201,11 @@
       }
 
       /* ═══ 分段控制器 ═══ */
+      /* CSP: avoid inline event handlers */
+      #configure-shortcuts:hover {
+        background: var(--border) !important;
+      }
+
       .segmented-control {
         display: flex;
         position: relative;
@@ -937,8 +942,7 @@
                 font-family: var(--font);
                 transition: var(--transition);
               "
-              onmouseover="this.style.background='var(--border)'"
-              onmouseout="this.style.background='var(--primary-soft)'"
+
             >
               自定义
             </button>
@@ -1123,8 +1127,8 @@
         <i></i><span>排版细节 (<span id="mapping-label">全局</span>)</span>
       </div>
       <label class="switch" style="transform: scale(0.85); margin-right: -4px; order: 1;">
+        <input type="checkbox" id="typo-switch" />
         <span class="slider"></span>
-        <input type="checkbox" id="typo-switch" checked />
       </label>
     </div>
     <div class="card" id="typo-card">

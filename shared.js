@@ -14,7 +14,7 @@ const DEFAULT_MAPPING = {
 };
 
 const DEFAULT_TYPO = {
-  enabled: true,
+  enabled: false,
   lineHeight: "1.6",
   fontSize: "100",
   fontWeight: "0",
@@ -165,6 +165,9 @@ const DataValidator = {
    * @returns {Object} 修复后的设置对象
    */
   ensureSettings(settings) {
+    if (settings === undefined || settings === null || Array.isArray(settings)) {
+      return JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
+    }
     if (!settings || typeof settings !== "object") {
       console.warn("[PureRead] 设置数据无效，使用默认值");
       return JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
@@ -179,18 +182,9 @@ const DataValidator = {
     if (typeof settings.global.on !== "boolean") {
       settings.global.on = true;
     }
-    if (
-      !settings.global.mapping ||
-      typeof settings.global.mapping !== "object"
-    ) {
-      settings.global.mapping = { ...DEFAULT_MAPPING };
-    }
-    if (!settings.global.typo || typeof settings.global.typo !== "object") {
-      settings.global.typo = { ...DEFAULT_TYPO };
-    }
-    if (!settings.global.selectors) {
-      settings.global.selectors = { ...DEFAULT_SELECTORS };
-    }
+    settings.global.mapping = DataValidator.ensureMapping(settings.global.mapping);
+    settings.global.typo = DataValidator.ensureTypo(settings.global.typo);
+    settings.global.selectors = DataValidator.ensureSelectors(settings.global.selectors);
     if (!settings.global.features) {
       settings.global.features = JSON.parse(JSON.stringify(DEFAULT_FEATURES));
     }
@@ -218,8 +212,8 @@ const DataValidator = {
     }
 
     if (!siteData.mode) siteData.mode = "global";
-    if (!siteData.mapping) siteData.mapping = { ...DEFAULT_MAPPING };
-    if (!siteData.typo) siteData.typo = { ...DEFAULT_TYPO };
+    siteData.mapping = DataValidator.ensureMapping(siteData.mapping);
+    siteData.typo = DataValidator.ensureTypo(siteData.typo);
 
     return siteData;
   },
@@ -233,11 +227,32 @@ const DataValidator = {
     if (!typo || typeof typo !== "object") {
       return { ...DEFAULT_TYPO };
     }
+
+    const lineHeight =
+      typo.lineHeight !== undefined && typo.lineHeight !== null && typo.lineHeight !== ""
+        ? String(typo.lineHeight)
+        : DEFAULT_TYPO.lineHeight;
+    const fontSize =
+      typo.fontSize !== undefined && typo.fontSize !== null && typo.fontSize !== ""
+        ? String(typo.fontSize)
+        : DEFAULT_TYPO.fontSize;
+    const fontWeight =
+      typo.fontWeight !== undefined && typo.fontWeight !== null && typo.fontWeight !== ""
+        ? String(typo.fontWeight)
+        : DEFAULT_TYPO.fontWeight;
+
+    // If enabled is missing (older configs), infer it from whether any typo value differs.
+    const enabled =
+      typeof typo.enabled === "boolean"
+        ? typo.enabled
+        : lineHeight !== DEFAULT_TYPO.lineHeight ||
+          fontSize !== DEFAULT_TYPO.fontSize ||
+          fontWeight !== DEFAULT_TYPO.fontWeight;
     return {
-      enabled: typo.enabled !== false,
-      lineHeight: typo.lineHeight || DEFAULT_TYPO.lineHeight,
-      fontSize: typo.fontSize || DEFAULT_TYPO.fontSize,
-      fontWeight: typo.fontWeight || DEFAULT_TYPO.fontWeight,
+      enabled,
+      lineHeight,
+      fontSize,
+      fontWeight,
     };
   },
 

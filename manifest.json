@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "PureRead",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "description": "提升网页阅读体验：字体替换、排版调节、阅读进度、专注模式",
     "permissions": [
         "storage",

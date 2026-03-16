@@ -72,7 +72,18 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     try {
       const result = await Storage.get(["settings"]);
-      data = DataValidator.ensureSettings(result.settings);
+      const rawSettings = result.settings;
+      data = DataValidator.ensureSettings(rawSettings);
+      if (
+        rawSettings === undefined ||
+        rawSettings === null ||
+        typeof rawSettings !== "object" ||
+        Array.isArray(rawSettings)
+      ) {
+        // Repair invalid storage so content scripts can reliably read defaults.
+        skipNextSync = true;
+        await Storage.set({ settings: data });
+      }
       siteData = DataValidator.ensureSiteData(data.sites[domain]);
 
       const sliders = document.querySelectorAll(".slider, .selection-bar");
@@ -281,9 +292,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   function updateTypoSwitchUI() {
     const checkedMode = document.querySelector('input[name="mode"]:checked');
     const isCustom = checkedMode && checkedMode.value === "custom";
-    const activeTypo =
-      (isCustom ? siteData.typo : data.global.typo) || DEFAULT_TYPO;
-    els.typoSwitch.checked = activeTypo.enabled !== false;
+    const activeTypo = DataValidator.ensureTypo(
+      (isCustom ? siteData.typo : data.global.typo) || DEFAULT_TYPO,
+    );
+    els.typoSwitch.checked = activeTypo.enabled === true;
     els.typoCard.style.opacity = els.typoSwitch.checked ? "1" : "0.5";
     els.typoCard.style.pointerEvents = els.typoSwitch.checked ? "auto" : "none";
   }
@@ -422,9 +434,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     const isCustom = mode === "custom";
     els.mappingLabel.innerText = isCustom ? "当前站点定制" : "全局通用设置";
 
-    const activeMapping = isCustom ? siteData.mapping : data.global.mapping;
-    const activeTypo =
-      (isCustom ? siteData.typo : data.global.typo) || DEFAULT_TYPO;
+    const activeMapping = DataValidator.ensureMapping(
+      isCustom ? siteData.mapping : data.global.mapping,
+    );
+    const activeTypo = DataValidator.ensureTypo(
+      (isCustom ? siteData.typo : data.global.typo) || DEFAULT_TYPO,
+    );
 
     els.selectors.forEach((input) => {
       input.value = activeMapping[input.dataset.key] || "";

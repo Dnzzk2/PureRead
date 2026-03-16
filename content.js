@@ -59,7 +59,7 @@ function updateContentStyles(settings) {
     math: "",
   };
   const typo = (isCustom ? site.typo : global.typo) || {
-    enabled: true,
+    enabled: false,
     lineHeight: "1.6",
     fontSize: "100",
     fontWeight: "0",
@@ -76,8 +76,40 @@ function removeStyles() {
 function applyStyles(mapping, typo, selectors) {
   const font = (name, fallback) =>
     name ? `font-family: "${name}", ${fallback} !important;` : "";
-  const scale = typo.fontSize / 100;
-  const typoOn = typo.enabled !== false;
+
+  const defaultTypo = {
+    enabled: false,
+    lineHeight: "1.6",
+    fontSize: "100",
+    fontWeight: "0",
+  };
+
+  const lineHeight =
+    typo.lineHeight !== undefined && typo.lineHeight !== null && typo.lineHeight !== ""
+      ? String(typo.lineHeight)
+      : defaultTypo.lineHeight;
+  const fontSize =
+    typo.fontSize !== undefined && typo.fontSize !== null && typo.fontSize !== ""
+      ? String(typo.fontSize)
+      : defaultTypo.fontSize;
+  const fontWeight =
+    typo.fontWeight !== undefined && typo.fontWeight !== null && typo.fontWeight !== ""
+      ? String(typo.fontWeight)
+      : defaultTypo.fontWeight;
+
+  const inferredEnabled =
+    lineHeight !== defaultTypo.lineHeight ||
+    fontSize !== defaultTypo.fontSize ||
+    fontWeight !== defaultTypo.fontWeight;
+  const typoEnabled =
+    typeof typo.enabled === "boolean" ? typo.enabled : inferredEnabled;
+
+  const typoOn = typoEnabled === true;
+
+  const fontSizeNum = Number(fontSize);
+  const scale = Number.isFinite(fontSizeNum)
+    ? fontSizeNum / 100
+    : Number(defaultTypo.fontSize) / 100;
 
   const getExtra = (key) => {
     const raw =
@@ -99,7 +131,7 @@ function applyStyles(mapping, typo, selectors) {
 
   // 排除规则
   const exclude = {
-    icon: ':not(.fa):not(.fas):not(.far):not(.fab):not(.glyphicon):not(.iconfont):not([class*="icon"]):not(i)',
+    icon: ':not(.fa):not(.fas):not(.far):not(.fab):not(.glyphicon):not(.iconfont):not([class*="fa-" i]):not([class*="icon" i]):not([class*="glyph" i]):not([class*="symbol" i]):not([class*="emoji" i]):not([data-icon]):not([role="img"]):not([aria-hidden="true"]):not(i)',
     code: ':not(pre):not(pre *):not(code):not(code *):not(kbd):not(samp):not([class*="pl-"]):not([class*="blob-code"]):not([class*="highlight"])',
     media:
       ":not(video):not(iframe):not(canvas):not(svg):not(svg *):not(img):not(audio)",
@@ -109,7 +141,7 @@ function applyStyles(mapping, typo, selectors) {
 
   const css = `
     :root {
-      --pr-lh: ${typo.lineHeight};
+      --pr-lh: ${lineHeight};
       --pr-fs: ${scale};
     }
 
@@ -141,18 +173,18 @@ function applyStyles(mapping, typo, selectors) {
 
     /* 字重补偿 - 支持正负值 */
     ${
-      typo.fontWeight != "0"
-        ? parseInt(typo.fontWeight) > 0
+      fontWeight != "0"
+        ? parseInt(fontWeight) > 0
           ? `
     /* 正值：使用 text-stroke 加粗 */
-    body *:not([class*="icon"]):not(i)${exclude.media} {
-      -webkit-text-stroke-width: ${typo.fontWeight / 500}px;
+    body *:not([class*="icon" i]):not(.iconfont):not([data-icon]):not([role="img"]):not([aria-hidden="true"]):not(i)${exclude.media} {
+      -webkit-text-stroke-width: ${fontWeight / 500}px;
     }`
           : `
     /* 负值：使用 font-weight 减细 + letter-spacing 视觉优化 */
-    body *:not([class*="icon"]):not(i)${exclude.media}:not(h1):not(h2):not(h3) {
+    body *:not([class*="icon" i]):not(.iconfont):not([data-icon]):not([role="img"]):not([aria-hidden="true"]):not(i)${exclude.media}:not(h1):not(h2):not(h3) {
       font-weight: lighter !important;
-      letter-spacing: ${Math.abs(parseInt(typo.fontWeight)) / 400}px;
+      letter-spacing: ${Math.abs(parseInt(fontWeight)) / 400}px;
     }`
         : ""
     }

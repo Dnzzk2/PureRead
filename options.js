@@ -1,6 +1,7 @@
 // 全局变量
 let allSchemes = [];
 let allSettings = {};
+let isRippleBound = false;
 let allFonts = []; // 系统字体列表
 
 function escapeHTML(str) {
@@ -10,7 +11,25 @@ function escapeHTML(str) {
 }
 
 // 初始化
+function bindRippleEffect() {
+  if (isRippleBound) return;
+  isRippleBound = true;
+
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest(".btn, .backup-btn, .save-btn");
+    if (!btn) return;
+    const rect = btn.getBoundingClientRect();
+    const ripple = document.createElement("span");
+    ripple.className = "ripple";
+    ripple.style.left = e.clientX - rect.left - 10 + "px";
+    ripple.style.top = e.clientY - rect.top - 10 + "px";
+    btn.appendChild(ripple);
+    ripple.addEventListener("animationend", () => ripple.remove());
+  });
+}
+
 async function init() {
+  bindRippleEffect();
   await loadSystemFonts();
   loadData();
   updateStorageInfo();
@@ -53,7 +72,16 @@ async function loadSystemFonts() {
 
 function loadData() {
   chrome.storage.sync.get(["settings", "schemes"], (res) => {
-    allSettings = res.settings || { sites: {}, global: {} };
+    const rawSettings = res.settings;
+    allSettings = DataValidator.ensureSettings(rawSettings);
+    if (
+      rawSettings === undefined ||
+      rawSettings === null ||
+      typeof rawSettings !== "object" ||
+      Array.isArray(rawSettings)
+    ) {
+      chrome.storage.sync.set({ settings: allSettings });
+    }
     allSchemes = res.schemes || [];
     renderSchemes(allSchemes);
     renderSites(allSettings.sites);
