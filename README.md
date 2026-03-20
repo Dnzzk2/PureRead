@@ -1,83 +1,101 @@
-# PureRead
+<p align="center">
+  <img src="./icon.png" height="128" alt="PureRead Logo">
+</p>
 
-> **Note**: 本项目由 **Vibe Coding** 生成，核心逻辑与代码实现均由 AI 辅助完成，并非完全手写。旨在探索 AI 辅助编程的潜力与最佳实践。
+<p align="center">Your font, your rules. A professional, lightweight Chrome extension that provides you with an excellent web reading experience.</p>
+<p align="center">你的字体，你做主。一款专业、轻量的浏览器扩展，为你提供卓越的网页阅读体验。</p>
 
-PureRead 是一款专注于提升网页阅读体验的浏览器扩展（Chrome/Edge）。它提供字体替换、排版调节、阅读进度可视化、专注模式等功能，帮助你在任何网页上获得更舒适的阅读体验。
+> [!IMPORTANT]
+> PureRead 诞生的核心初衷是提供 **「网页字体更换」** 体验。
 
-## 安装与使用 (Installation & Usage)
+---
 
-### Chromium 内核浏览器 (Chrome / Edge 等)
+## 功能展示
 
-1. Clone 本仓库到本地，或下载 ZIP 包并解压。
-2. 打开 Chrome/Edge 浏览器，访问 `chrome://extensions/` (Edge 为 `edge://extensions/`)。
-3. 开启右上角或左下角的 **"开发者模式" (Developer mode)**。
-4. 点击 **"加载已解压的扩展程序" (Load unpacked)**，选择本项目根目录。
+### 1. 基础控制与阅读辅助面板
 
-### Firefox 浏览器 (通过 CRX Installer)
+这是扩展的交互入口，包含站点开关与基础环境优化：
 
-1. 在 Firefox 浏览器中，安装并启用 [CRX Installer](https://addons.mozilla.org/en-US/firefox/addon/crxinstaller/) 扩展（或其他可以将 Chrome 扩展转换为 Firefox 格式的工具）。
-2. 打包本扩展为 `.crx` 或直接打为 `.zip` 包。
-3. 使用 CRX Installer 加载并安装，以在 Firefox 内核中使用。
+- **站点策略切换**：支持「跟随全局」同步样式，或开启「单独定制」为特定网站保存独立的排版参数。
+- **阅读增强 (辅助功能)**：内置四项基于视觉交互的锦上添花功能，旨在提升阅读沉浸感。
+- **快捷键系统**：提供自定义快速热键，支持开启/关闭扩展插件。
 
-## 核心逻辑 (Logic & Rules)
+|                                               主控面板 - 浅色                                                |                                                  主控面板 - 深色                                                  |
+| :----------------------------------------------------------------------------------------------------------: | :---------------------------------------------------------------------------------------------------------------: |
+| <img src="https://cdn.jsdelivr.net/gh/Dnzzk2/image-hosting@main/PureRead/PureRead-popup.png" height="350" /> | <img src="https://cdn.jsdelivr.net/gh/Dnzzk2/image-hosting@main/PureRead/PureRead-popup-dark.png" height="350" /> |
 
-本项目遵循以下核心设计规则：
+### 2. 主旋律：字体选择与排版细节
 
-1. **样式注入机制 (Injection System)**
-    - 使用 `document_start` 时机注入核心 CSS 变量，尽可能减少页面闪烁（FOUC）。
-    - 通过动态创建 `<style id="pure-read-injector">` 标签挂载样式。
-    - 使用 CSS 变量（`--pr-fs`, `--pr-lh`）控制排版，通过 JS 修改根元素变量实现实时预览，性能极高。
+本项目的主要功能模块，通过对内容类型的拆解，实现网页视觉的精致统一：
 
-2. **配置优先级 (Configuration Priority)**
-    - **站点级 (Domain Specific)** > **全局级 (Global)**。
-    - 扩展会自动识别当前域名。若用户为当前域名单独设置了开关或样式（"Custom" 模式），则忽略全局设置。
-    - 支持“黑名单”与“白名单”逻辑：
-      - 全局开启时，可单独关闭特定站点（黑名单）。
-      - 全局关闭时，可单独开启特定站点（白名单）。
+- **三维度字体设置**：将内容拆分为 **标准字体**、**代码/等宽** 以及 **数学公式** 三个维度，解决常见插件一刀切导致排版紊乱的问题。
+- **参数精细调节**：提供 **行间距**、**字号缩放** 以及 **字重补偿** 的灵敏微调。
 
-3. **智能排除 (Smart Exclusion)**
-    - 为了防止破坏网页功能，内置了严格的排除规则（`exclude` 对象）。
-    - **不处理**：图标（FontAwesome/Iconfont）、代码编辑器（CodeMirror/Monaco）、视频播放器、数学公式（MathJax/KaTeX 独立处理）。
+|                                                字体选择与排版 - 浅色                                                |                                                  字体选择与排版 - 深色                                                   |
+| :-----------------------------------------------------------------------------------------------------------------: | :----------------------------------------------------------------------------------------------------------------------: |
+| <img src="https://cdn.jsdelivr.net/gh/Dnzzk2/image-hosting@main/PureRead/PureRead-popup-select.png" height="400" /> | <img src="https://cdn.jsdelivr.net/gh/Dnzzk2/image-hosting@main/PureRead/PureRead-popup-select-dark.png" height="400" /> |
 
-4. **阅读增强功能 (Reading Enhancement)**
-    - **阅读进度条**：在页面顶部显示当前阅读进度（0-100%），支持自定义颜色。默认翡翠绿 `#10b981`。
-    - **专注模式**：一键淡化侧边栏、广告、导航栏等非正文区域（站点级记忆）。悬停时恢复可见。
-    - **智能暗色模式**：自动检测网站是否支持原生暗色主题。如果支持，触发网站内置暗色模式；如果不支持，使用 CSS filter 反转颜色（fallback）。
-    - **阅读时间估算**：自动计算正文字数，显示预计阅读时间（中文 400字/分钟，英文 200词/分钟）。
+### 3. 配置方案与深度适配
 
-5. **快捷键支持 (Keyboard Shortcuts)**
-    - `Alt+Shift+P`：开关当前站点
-    - `Alt+Shift+F`：切换专注模式
-    - `Alt+Shift+D`：切换暗色模式
-    - `Alt+Shift+R`：切换阅读时间显示
+针对特定场景的进阶功能，确保存储与样式匹配：
 
-6. **构建与发布 (Build & Release)**
-    - 项目内置了 `build.py` 自动化脚本。
-    - 运行 `python build.py` 即可自动读取版本号并生成发布用的 ZIP 压缩包。
+- **方案保存**：支持将当前的调节参数管理并打包，方便一键切换。
+- **补充 CSS 选择器**：支持手动输入特定的选择器，确保样式能精准覆盖特殊的网页区域。
 
-## 学习价值 (Learning Context)
+|                                                 方案与选择器 - 浅色                                                  |                                                    方案与选择器 - 深色                                                    |
+| :------------------------------------------------------------------------------------------------------------------: | :-----------------------------------------------------------------------------------------------------------------------: |
+| <img src="https://cdn.jsdelivr.net/gh/Dnzzk2/image-hosting@main/PureRead/PureRead-popup-setting.png" height="350" /> | <img src="https://cdn.jsdelivr.net/gh/Dnzzk2/image-hosting@main/PureRead/PureRead-popup-setting-dark.png" height="350" /> |
 
-如果你正在学习浏览器扩展开发或原生 Web 技术，本项目是一个很好的参考案例：
+### 4. 站点管理与控制中心 (Options)
 
-1. **Manifest V3 架构**
-    - 学习如何使用 MV3 的 `storage.sync` 进行跨设备配置同步。
-    - 理解 `content_scripts` 与 `popup`/`options` 页面之间的通信机制（`chrome.runtime.sendMessage`）。
+选项页面提供了完整的配置看板，涵盖了存储监控、全局 CSS 注入以及数据备份等功能。
 
-2. **Vanilla JS & 无框架开发**
-    - 本项目未使用 React/Vue 等框架，纯原生 JS (`popup.js`, `content.js`) 实现。
-    - 适合学习 DOM 操作、事件委托、防抖（Debounce）处理高频输入（如滑块拖动）。
+|                                                            控制中心                                                             |
+| :-----------------------------------------------------------------------------------------------------------------------------: |
+| <img src="https://cdn.jsdelivr.net/gh/Dnzzk2/image-hosting@main/PureRead/PureRead-options.png" height="400" alt="Options Page"> |
 
-3. **高级 CSS 技巧**
-    - 深入理解 CSS 权重（Specificity）与 `!important` 的攻防。
-    - 学习 CSS 变量（Custom Properties）在动态主题中的应用。
-    - 学习如何编写健壮的 CSS 选择器（`:not()` 伪类连用技巧）来精准命中目标文本而不误伤 UI 组件。
+---
 
-4. **数据持久化与状态管理**
-    - 观察如何设计扁平化的数据结构来存储全局设置与成百上千个站点的独立配置。
+## 快速开始
 
-## 协议 (License)
+### Chromium 内核 (Chrome / Edge / Brave 等)
 
-本项目采用 **MIT 协议** 开源。
-这意味着你可以自由地使用、复制、修改、合并、出版发行、散布、再授权及贩售本软件及其副本。
+1. 前往 [Releases](https://github.com/Dnzzk2/PureRead/releases) 下载最新版本的 `.zip` 压缩包并解压。
+2. 打开 `chrome://extensions/` 页面，开启 **“开发者模式”**。
+3. 点击 **“加载已解解压的扩展程序”**，选择解压后的文件夹即可。
 
-详见 [LICENSE](./LICENSE) 文件。
+### Firefox 内核
+
+1. 使用 [CRX Installer](https://addons.mozilla.org/zh-CN/firefox/addon/crxinstaller/) 等辅助工具导入安装包。
+
+> [!WARNING]
+> **火狐版已知限制**：Firefox 版本 **无法自动获取系统字体列表**。建议用户在设置中通过手动输入字体名称来生效。
+
+---
+
+## 快捷键
+
+| 功能                 | 快捷键            |
+| :------------------- | :---------------- |
+| **开/关当前站点**    | `Alt + Shift + P` |
+| **切换专注模式**     | `Alt + Shift + F` |
+| **切换暗色模式**     | `Alt + Shift + D` |
+| **切换阅读时间显示** | `Alt + Shift + R` |
+
+---
+
+## 社区与支持
+
+感谢以下社区的支持与讨论：
+
+- [Linux.do](https://linux.do/)
+
+## 开源协议
+
+本项目采用 [MIT License](./LICENSE) 。
+
+---
+
+## Vibe Coding
+
+本项目是一个典型的 **Vibe Coding** 产物。所有的代码生成、功能讨论及 README 的多轮迭代均在开发者与 AI 的“对话灵感”中完成。我们追求极致的视觉直觉与流畅的开发律动感。
