@@ -674,6 +674,9 @@
       .selector-label .dot.amber {
         background: #f59e0b;
       }
+      .selector-label .dot.slate {
+        background: #64748b;
+      }
       .selector-tag {
         font-size: 10px;
         color: var(--text-muted);
@@ -718,12 +721,12 @@
       }
 
       .textarea-input {
-        height: 64px;
+        min-height: 78px;
         resize: vertical;
         font-family: var(--font);
-        font-size: 12px;
-        padding: 12px 14px;
-        line-height: 1.6;
+        font-size: 14px;
+        padding: 13px 15px;
+        line-height: 1.7;
       }
 
       .empty {
@@ -967,6 +970,24 @@
                 placeholder=".Katex-display, .math-eqn..."
               ></textarea>
             </div>
+
+            <div class="selector-group">
+              <div class="selector-label-row">
+                <div class="selector-label">
+                  <span class="dot slate"></span> 排除替换
+                </div>
+                <span class="selector-tag">Exclude</span>
+              </div>
+              <textarea
+                id="selectors-exclude"
+                class="form-input textarea-input"
+                placeholder=".ico_increase, .iconfont, [data-icon]"
+              ></textarea>
+            </div>
+
+            <p class="desc" style="margin-top: -8px; margin-bottom: 0;">
+              支持逗号或换行分隔。排除项写元素本身即可，不需要手动写 <code>::before</code>。
+            </p>
 
             <div class="save-area">
               <button id="save-selectors" class="save-btn">

@@ -400,8 +400,8 @@
         padding: 6px;
       }
       .dropdown-item {
-        padding: 10px 14px;
-        font-size: 13px;
+        padding: 8px 12px;
+        font-size: 11.5px;
         border-radius: 4px;
         cursor: pointer;
         transition: 0.15s ease;
@@ -1215,17 +1215,9 @@
     </div>
 
     <!-- 补充选择器折叠面板 -->
-    <details class="selector-panel">
-      <summary class="selector-header">
+    <section class="selector-panel selector-panel-open">
+      <div class="selector-header">
         <div class="selector-title">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.5"
-          >
-            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-          </svg>
           <span>补充 CSS 选择器</span>
         </div>
         <svg
@@ -1237,104 +1229,236 @@
         >
           <polyline points="6 9 12 15 18 9" />
         </svg>
-      </summary>
+      </div>
       <div class="selector-body">
+        <div class="selector-picker">
+          <div class="selector-picker-meta">
+            <div class="selector-picker-title">页面拾取</div>
+            <p class="selector-picker-desc">
+              从当前网页点选一个元素，自动追加到你指定的规则项。
+            </p>
+          </div>
+          <div class="selector-picker-controls">
+            <div class="setting-item selector-picker-target">
+              <div class="input-group selector-picker-input-group">
+                <input
+                  id="selector-pick-target"
+                  class="selector-picker-select-input"
+                  type="text"
+                  readonly
+                  value="额外匹配 · 标准字体"
+                />
+                <div class="selector-picker-chevron">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="3"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </div>
+              </div>
+              <div id="selector-pick-dropdown" class="dropdown-list selector-pick-dropdown"></div>
+            </div>
+            <button type="button" id="selector-pick-button" class="selector-picker-button">
+              开始拾取
+            </button>
+          </div>
+        </div>
         <div class="selector-group">
           <label class="selector-label">标准字体</label>
           <textarea
             id="selectors-standard"
             class="selector-textarea"
-            placeholder=".article-content, .post-body"
+            placeholder="请输入"
           ></textarea>
+          <div class="selector-example">例如：`.article-content`</div>
         </div>
         <div class="selector-group">
           <label class="selector-label">代码/等宽</label>
           <textarea
             id="selectors-mono"
             class="selector-textarea"
-            placeholder=".code-block, pre.highlight"
+            placeholder="请输入"
           ></textarea>
+          <div class="selector-example">例如：`.code-block` 或 `pre.highlight`</div>
         </div>
         <div class="selector-group">
           <label class="selector-label">数学公式</label>
           <textarea
             id="selectors-math"
             class="selector-textarea"
-            placeholder=".katex, .MathJax"
+            placeholder="请输入"
           ></textarea>
+          <div class="selector-example">例如：`.katex` 或 `.MathJax`</div>
         </div>
+        <div class="selector-group">
+          <label class="selector-label">排除替换 · 全局</label>
+          <textarea
+            id="selectors-exclude"
+            class="selector-textarea"
+            placeholder="请输入"
+          ></textarea>
+          <div class="selector-example">例如：`.ico_increase` 或 `[data-icon]`</div>
+        </div>
+        <p class="selector-hint">
+          支持逗号或换行分隔。排除项写元素本身即可，不需要手动写 <code>::before</code>。
+        </p>
       </div>
-    </details>
+    </section>
 
     <style>
       /* ═══ 折叠面板 - 典雅风格 ═══ */
       .selector-panel {
-        margin-top: 24px;
-        background: var(--bg);
-        border: 1px solid var(--border);
-        border-radius: 8px;
-        overflow: hidden;
-        transition: var(--transition);
+        margin-top: 28px;
+        background: transparent;
+        border: none;
+        box-shadow: none;
       }
-      .selector-panel[open] {
-        border-color: var(--border-strong);
-        box-shadow: 0 4px 16px rgba(0,0,0,0.04);
-        background: var(--box-bg);
+      .selector-panel-open {
+        background: transparent;
       }
 
       .selector-header {
-        padding: 16px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        cursor: pointer;
+        padding: 0;
+        margin: 0 0 14px;
         background: transparent;
-        transition: background 0.2s ease;
-        list-style: none;
-      }
-      .selector-header::-webkit-details-marker {
-        display: none;
-      }
-      .selector-header:hover {
-        background: var(--primary-soft);
       }
 
       .selector-title {
         display: flex;
         align-items: center;
-        gap: 12px;
-        font-size: 12px;
+        gap: 0;
+        width: 100%;
+        font-size: 11px;
         font-weight: 700;
-        color: var(--text);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-      }
-      .selector-title svg {
-        width: 14px;
-        height: 14px;
-        color: var(--primary);
-      }
-
-      .selector-chevron {
-        width: 12px;
-        height: 12px;
         color: var(--text-muted);
-        transition:
-          transform 0.3s ease,
-          color 0.3s ease;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
       }
-      .selector-panel[open] .selector-chevron {
-        transform: rotate(180deg);
-        color: var(--primary);
+      .selector-title::after {
+        content: "";
+        flex: 1;
+        height: 1px;
+        background: var(--border);
+      }
+      .selector-chevron {
+        display: none;
+      }
+      .selector-panel-open .selector-chevron {
+        display: none;
       }
 
       .selector-body {
-        padding: 16px;
-        border-top: 1px solid var(--border);
+        padding: 18px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        box-shadow: var(--shadow);
         display: flex;
         flex-direction: column;
-        gap: 14px;
+        gap: 16px;
+        background: var(--box-bg);
+      }
+
+      .selector-picker {
+        padding: 0 0 14px;
+        border: none;
+        border-bottom: 1px dashed var(--border);
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .selector-picker-title {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--text);
+        letter-spacing: -0.01em;
+      }
+      .selector-picker-desc {
+        margin: 4px 0 0;
+        font-size: 12px;
+        line-height: 1.6;
+        color: var(--text-muted);
+      }
+      .selector-picker-controls {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 8px;
+        align-items: start;
+      }
+      .selector-picker-target {
+        min-width: 0;
+        margin-bottom: 0;
+      }
+      .selector-picker-select-input,
+      .selector-picker-button {
+        height: 38px;
+        border-radius: 4px;
+        border: 1px solid var(--border);
+        font-family: var(--font);
+        font-size: 12px;
+        transition: var(--transition);
+      }
+      .selector-picker-input-group {
+        min-width: 0;
+      }
+      .selector-picker-select-input {
+        width: 100%;
+        min-width: 0;
+        padding: 0 38px 0 12px;
         background: var(--bg);
+        color: var(--text);
+        outline: none;
+        cursor: pointer;
+      }
+      .selector-picker-select-input:focus {
+        border-color: var(--primary);
+        box-shadow: var(--shadow-focus);
+      }
+      .selector-picker-target.open .selector-picker-chevron,
+      .selector-picker-target:focus-within .selector-picker-chevron {
+        color: var(--primary);
+        opacity: 1;
+        transform: rotate(180deg);
+      }
+      .selector-picker-chevron {
+        position: absolute;
+        right: 12px;
+        top: 0;
+        bottom: 0;
+        display: flex;
+        align-items: center;
+        color: var(--text-muted);
+        opacity: 0.5;
+        pointer-events: none;
+        transition: 0.25s ease;
+      }
+      .selector-picker-chevron svg {
+        width: 12px;
+        height: 12px;
+      }
+      .selector-pick-dropdown {
+        top: calc(100% + 6px);
+        left: 0;
+        right: 0;
+      }
+      .selector-picker-button {
+        padding: 0 14px;
+        background: var(--primary);
+        color: #fff;
+        cursor: pointer;
+        border-color: var(--primary);
+        letter-spacing: 0.3px;
+        font-weight: 700;
+      }
+      .selector-picker-button:hover {
+        opacity: 0.92;
       }
 
       .selector-group {
@@ -1342,24 +1466,45 @@
         flex-direction: column;
         gap: 6px;
       }
-      .selector-label {
-        font-size: 10px;
-        font-weight: 700;
+      .selector-example {
+        font-size: 11px;
+        line-height: 1.5;
         color: var(--text-muted);
+      }
+      .selector-example code {
+        font-size: 11px;
+      }
+      .selector-hint {
+        margin: 0;
+        font-size: 11px;
+        line-height: 1.6;
+        color: var(--text-muted);
+      }
+      .selector-hint code {
+        font-size: 11px;
+        padding: 1px 4px;
+        border-radius: 4px;
+        background: var(--bg);
+        border: 1px solid var(--border);
+      }
+      .selector-label {
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--text-light);
         text-transform: uppercase;
         letter-spacing: 0.5px;
       }
       .selector-textarea {
         width: 100%;
-        height: 48px;
-        padding: 10px 12px;
+        min-height: 64px;
+        padding: 12px 14px;
         border: 1px solid var(--border);
         border-radius: 4px;
-        background: var(--box-bg);
+        background: var(--bg);
         color: var(--text);
         font-family: var(--font);
-        font-size: 11px;
-        line-height: 1.5;
+        font-size: 13px;
+        line-height: 1.65;
         resize: vertical;
         outline: none;
         transition: var(--transition);
@@ -1367,9 +1512,10 @@
       }
       .selector-textarea:focus {
         border-color: var(--primary);
+        box-shadow: var(--shadow-focus);
       }
       .selector-textarea::placeholder {
-        color: var(--text-muted);
+        color: rgba(120, 120, 120, 0.9);
       }
 
       /* ═══ 方案卡片点击反馈 ═══ */

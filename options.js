@@ -10,6 +10,33 @@ function escapeHTML(str) {
   return div.innerHTML;
 }
 
+function applySelectorCopy() {
+  const section = document.getElementById("selectors-standard")?.closest(".section");
+  if (!section) return;
+
+  const heading = section.querySelector(".section-header h2");
+  if (heading && heading.lastChild && heading.lastChild.nodeType === Node.TEXT_NODE) {
+    heading.lastChild.textContent = " 作用范围与排除";
+  }
+
+  const desc = section.querySelector(".desc");
+  if (desc) {
+    desc.innerHTML =
+      '补充需要命中的元素，或排除容易乱码的图标字体。支持逗号或换行分隔，例如 <code>.article-body</code>、<code>.ico_increase</code>。';
+  }
+
+  const labels = section.querySelectorAll(".selector-label");
+  if (labels[0]) labels[0].innerHTML = '<span class="dot blue"></span> 额外匹配 · 标准字体';
+  if (labels[1]) labels[1].innerHTML = '<span class="dot green"></span> 额外匹配 · 代码 / 等宽';
+  if (labels[2]) labels[2].innerHTML = '<span class="dot amber"></span> 额外匹配 · 数学公式';
+
+  const tags = section.querySelectorAll(".selector-tag");
+  if (tags[0]) tags[0].textContent = "Include";
+  if (tags[1]) tags[1].textContent = "Include";
+  if (tags[2]) tags[2].textContent = "Include";
+  if (tags[3]) tags[3].textContent = "Exclude";
+}
+
 // 初始化
 function bindRippleEffect() {
   if (isRippleBound) return;
@@ -29,6 +56,7 @@ function bindRippleEffect() {
 }
 
 async function init() {
+  applySelectorCopy();
   bindRippleEffect();
   await loadSystemFonts();
   loadData();
@@ -87,19 +115,19 @@ function loadData() {
     renderSites(allSettings.sites);
 
     // 加载补充选择器
-    const selectors = allSettings.global?.selectors || {
-      standard: "",
-      mono: "",
-      math: "",
-    };
+    const selectors = DataValidator.ensureSelectors(allSettings.global?.selectors);
     if (typeof selectors === "string") {
       // 兼容旧版
-      document.getElementById("selectors-standard").value = selectors;
+      document.getElementById("selectors-standard").value = "";
     } else {
       document.getElementById("selectors-standard").value =
-        selectors.standard || "";
-      document.getElementById("selectors-mono").value = selectors.mono || "";
-      document.getElementById("selectors-math").value = selectors.math || "";
+        selectors.include.standard || "";
+      document.getElementById("selectors-mono").value =
+        selectors.include.mono || "";
+      document.getElementById("selectors-math").value =
+        selectors.include.math || "";
+      document.getElementById("selectors-exclude").value =
+        selectors.exclude || "";
     }
   });
 }
@@ -340,9 +368,12 @@ function bindGlobalEvents() {
   // 保存补充选择器
   document.getElementById("save-selectors").onclick = () => {
     const selectors = {
-      standard: document.getElementById("selectors-standard").value,
-      mono: document.getElementById("selectors-mono").value,
-      math: document.getElementById("selectors-math").value,
+      include: {
+        standard: document.getElementById("selectors-standard").value,
+        mono: document.getElementById("selectors-mono").value,
+        math: document.getElementById("selectors-math").value,
+      },
+      exclude: document.getElementById("selectors-exclude").value,
     };
     if (!allSettings.global) allSettings.global = {};
     allSettings.global.selectors = selectors;

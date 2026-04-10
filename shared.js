@@ -20,10 +20,15 @@ const DEFAULT_TYPO = {
   fontWeight: "0",
 };
 
-const DEFAULT_SELECTORS = {
+const DEFAULT_SELECTOR_RULES = {
   standard: "",
   mono: "",
   math: "",
+};
+
+const DEFAULT_SELECTORS = {
+  include: { ...DEFAULT_SELECTOR_RULES },
+  exclude: "",
 };
 
 // 新功能默认配置
@@ -40,12 +45,23 @@ const DEFAULT_GLOBAL = {
   on: true,
   mapping: { ...DEFAULT_MAPPING },
   typo: { ...DEFAULT_TYPO },
-  selectors: { ...DEFAULT_SELECTORS },
+  selectors: {
+    include: { ...DEFAULT_SELECTOR_RULES },
+    exclude: "",
+  },
   features: JSON.parse(JSON.stringify(DEFAULT_FEATURES)),
 };
 
 const DEFAULT_SETTINGS = {
-  global: { ...DEFAULT_GLOBAL },
+  global: {
+    ...DEFAULT_GLOBAL,
+    mapping: { ...DEFAULT_MAPPING },
+    typo: { ...DEFAULT_TYPO },
+    selectors: {
+      include: { ...DEFAULT_SELECTOR_RULES },
+      exclude: "",
+    },
+  },
   sites: {},
 };
 
@@ -279,15 +295,36 @@ const DataValidator = {
    */
   ensureSelectors(selectors) {
     if (typeof selectors === "string") {
-      return { standard: selectors, mono: "", math: "" };
+      return {
+        include: { ...DEFAULT_SELECTOR_RULES, standard: selectors },
+        exclude: "",
+      };
     }
     if (!selectors || typeof selectors !== "object") {
-      return { ...DEFAULT_SELECTORS };
+      return {
+        include: { ...DEFAULT_SELECTOR_RULES },
+        exclude: "",
+      };
     }
+    if (!selectors.include && !("exclude" in selectors)) {
+      return {
+        include: {
+          standard: selectors.standard || "",
+          mono: selectors.mono || "",
+          math: selectors.math || "",
+        },
+        exclude: "",
+      };
+    }
+
+    const include = selectors.include;
     return {
-      standard: selectors.standard || "",
-      mono: selectors.mono || "",
-      math: selectors.math || "",
+      include: {
+        standard: include?.standard || "",
+        mono: include?.mono || "",
+        math: include?.math || "",
+      },
+      exclude: typeof selectors.exclude === "string" ? selectors.exclude : "",
     };
   },
 };
@@ -474,6 +511,7 @@ if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     DEFAULT_MAPPING,
     DEFAULT_TYPO,
+    DEFAULT_SELECTOR_RULES,
     DEFAULT_SELECTORS,
     DEFAULT_GLOBAL,
     DEFAULT_SETTINGS,

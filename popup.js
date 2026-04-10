@@ -15,6 +15,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     selectorStd: document.getElementById("selectors-standard"),
     selectorMono: document.getElementById("selectors-mono"),
     selectorMath: document.getElementById("selectors-math"),
+    selectorExclude: document.getElementById("selectors-exclude"),
+    selectorPickTarget: document.getElementById("selector-pick-target"),
+    selectorPickButton: document.getElementById("selector-pick-button"),
     // 新功能
     progressSwitch: document.getElementById("progress-switch"),
     progressColor: document.getElementById("progress-color"),
@@ -23,6 +26,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     readtimeSwitch: document.getElementById("readtime-switch"),
     shortcutsSwitch: document.getElementById("shortcuts-enabled"),
     shortcutsConfigBtn: document.getElementById("configure-shortcuts"),
+    domainDisplay: document.getElementById("domain-display")
   };
 
   // 核心变量
@@ -34,8 +38,57 @@ document.addEventListener("DOMContentLoaded", async () => {
   let skipNextSync = false;
   let isRefreshing = false;
 
+  const applySelectorCopy = () => {
+    const panelTitle = document.querySelector(".selector-title span");
+    if (panelTitle) panelTitle.textContent = "作用范围与排除";
+
+    const labels = document.querySelectorAll(".selector-label");
+    if (labels[0]) labels[0].textContent = "额外匹配 ・ 标准字体";
+    if (labels[1]) labels[1].textContent = "额外匹配 ・ 代码 / 等宽";
+    if (labels[2]) labels[2].textContent = "额外匹配 ・ 数学公式";
+  };
+
   // 1. 初始化流程
+  const PICK_TARGET_LABELS = {
+    standard: "额外匹配 ・ 标准字体",
+    mono: "额外匹配 ・ 代码 / 等宽",
+    math: "额外匹配 ・ 数学公式",
+    exclude: "排除替换 ・ 全局",
+  };
+
+  const startSelectorPicker = async () => {
+    if (!tab?.id || !domain) return;
+
+    // Use dataset.value (e.g., 'standard') instead of display text
+    const target = els.selectorPickTarget?.dataset.value || "standard";
+    try {
+      await chrome.tabs.sendMessage(tab.id, {
+        action: "startSelectorPicker",
+        target,
+      });
+      window.close();
+    } catch (e) {
+      console.warn("[PureRead] 无法启动页面拾取:", e.message);
+    }
+  };
+
   const init = async () => {
+    applySelectorCopy();
+    const selectorLabels = document.querySelectorAll(".selector-label");
+    if (selectorLabels[3]) selectorLabels[3].textContent = "排除替换 ・ 全局";
+    if (els.selectorPickButton) els.selectorPickButton.textContent = "开始拾取";
+    if (els.selectorPickTarget) {
+      if (els.selectorPickTarget.options) {
+        Array.from(els.selectorPickTarget.options).forEach((option) => {
+          option.textContent = PICK_TARGET_LABELS[option.value] || option.textContent;
+        });
+      } else {
+        // Handle custom input-based dropdown
+        const val = els.selectorPickTarget.dataset.value || "standard";
+        els.selectorPickTarget.value = PICK_TARGET_LABELS[val];
+        els.selectorPickTarget.dataset.value = val;
+      }
+    }
     // 获取域名
     try {
       const [currentTab] = await chrome.tabs.query({
@@ -54,11 +107,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     } catch (e) {
       console.error("[PureRead] 获取环境信息失败:", e.message);
     }
-    els.domainDisplay.innerText = domain || "不支持的页面";
+    if (els.domainDisplay) els.domainDisplay.innerText = domain || "不支持的页面";
 
     // 加载字体
     allFonts = await FontLoader.load();
-    els.loading.style.display = "none";
+    if (els.loading) els.loading.style.display = "none";
 
     // 首次同步 UI
     await refreshUI(true);
@@ -80,7 +133,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         typeof rawSettings !== "object" ||
         Array.isArray(rawSettings)
       ) {
-        // Repair invalid storage so content scripts can reliably read defaults.
         skipNextSync = true;
         await Storage.set({ settings: data });
       }
@@ -91,9 +143,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       // 同步开关状态
       const isGlobalOn = data.global.on !== false;
-      els.globalSwitch.checked = isGlobalOn;
-      els.siteSwitch.checked =
-        typeof siteData.on === "boolean" ? siteData.on : isGlobalOn;
+      if (els.globalSwitch) els.globalSwitch.checked = isGlobalOn;
+      if (els.siteSwitch) {
+        els.siteSwitch.checked =
+          typeof siteData.on === "boolean" ? siteData.on : isGlobalOn;
+      }
 
       const activeModeInput = document.querySelector(
         `input[name="mode"][value="${siteData.mode}"]`,
@@ -106,9 +160,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       // 同步补充选择器
       const selectors = DataValidator.ensureSelectors(data.global.selectors);
-      if (els.selectorStd) els.selectorStd.value = selectors.standard || "";
-      if (els.selectorMono) els.selectorMono.value = selectors.mono || "";
-      if (els.selectorMath) els.selectorMath.value = selectors.math || "";
+      if (els.selectorStd) els.selectorStd.value = selectors.include.standard || "";
+      if (els.selectorMono) els.selectorMono.value = selectors.include.mono || "";
+      if (els.selectorMath) els.selectorMath.value = selectors.include.math || "";
+      if (els.selectorExclude) els.selectorExclude.value = selectors.exclude || "";
 
       // 同步阅读增强
       const features = data.global.features || {};
@@ -141,19 +196,17 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
 
       if (isInitial) {
-        setTimeout(() => sliders.forEach((s) => (s.style.transition = "")), 50);
+        setTimeout(() => sliders.forEach((s) => (s.style.transition = "")), 5);
       }
     } finally {
       isRefreshing = false;
     }
   };
 
-  await init();
-
   // 核心保存逻辑
   const _saveDataCore = async () => {
-    const globalOn = els.globalSwitch.checked;
-    const siteOn = els.siteSwitch.checked;
+    const globalOn = els.globalSwitch?.checked ?? true;
+    const siteOn = els.siteSwitch?.checked ?? true;
     const checkedMode = document.querySelector('input[name="mode"]:checked');
     const mode = checkedMode ? checkedMode.value : "global";
 
@@ -165,14 +218,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     );
 
     const currentTypo = {
-      enabled: els.typoSwitch.checked,
+      enabled: els.typoSwitch?.checked ?? false,
     };
     els.typoRanges.forEach((r) => {
       currentTypo[r.dataset.key] = r.value;
       updateTypoLabel(r);
     });
 
-    // 核心改进：判断是否需要保留站点特定配置
     if (mode === "global" && siteOn === globalOn) {
       delete data.sites[domain];
       siteData.on = undefined;
@@ -197,90 +249,173 @@ document.addEventListener("DOMContentLoaded", async () => {
       updateMappingUI(data, siteData);
     }
 
-    // 保存补充选择器（全局）
     data.global.selectors = {
-      standard: els.selectorStd ? els.selectorStd.value : "",
-      mono: els.selectorMono ? els.selectorMono.value : "",
-      math: els.selectorMath ? els.selectorMath.value : "",
+      include: {
+        standard: els.selectorStd?.value || "",
+        mono: els.selectorMono?.value || "",
+        math: els.selectorMath?.value || "",
+      },
+      exclude: els.selectorExclude?.value || "",
     };
 
-    // 保存阅读增强功能状态
     if (!data.global.features) data.global.features = {};
-    // 进度条：全局配置
     data.global.features.progressBar = {
-      enabled: els.progressSwitch ? els.progressSwitch.checked : false,
-      color: els.progressColor ? els.progressColor.value : "#10b981",
+      enabled: els.progressSwitch?.checked ?? false,
+      color: els.progressColor?.value || "#10b981",
     };
 
-    // 专注模式：站点级配置
     if (domain && els.focusSwitch) {
       if (!data.sites[domain]) data.sites[domain] = {};
       data.sites[domain].focusMode = els.focusSwitch.checked;
-      // 同步更新 siteData 引用
       siteData.focusMode = els.focusSwitch.checked;
     }
 
-    // 暗色模式：全局配置
-    data.global.features.forceDark = els.darkSwitch
-      ? els.darkSwitch.checked
-      : false;
+    data.global.features.forceDark = els.darkSwitch?.checked ?? false;
+    data.global.features.readingTime = els.readtimeSwitch?.checked ?? false;
+    data.global.shortcutsEnabled = els.shortcutsSwitch?.checked ?? true;
 
-    // 阅读时间：全局配置
-    data.global.features.readingTime = els.readtimeSwitch
-      ? els.readtimeSwitch.checked
-      : false;
-
-    // 快捷键开关
-    data.global.shortcutsEnabled = els.shortcutsSwitch
-      ? els.shortcutsSwitch.checked
-      : true;
-
-    // 使用公共模块保存
     skipNextSync = true;
     const success = await Storage.set({ settings: data });
-    if (success && tab && tab.id) {
+    if (success && tab?.id) {
       try {
-        // 发送样式更新
-        await chrome.tabs.sendMessage(tab.id, {
-          action: "updateStyles",
-          settings: data,
-        });
-        // 发送功能更新
-        await chrome.tabs.sendMessage(tab.id, {
-          action: "updateFeatures",
-          settings: data,
-        });
-      } catch (e) {
-        // 页面可能不支持消息
-      }
+        await chrome.tabs.sendMessage(tab.id, { action: "updateStyles", settings: data });
+        await chrome.tabs.sendMessage(tab.id, { action: "updateFeatures", settings: data });
+      } catch (e) {}
     }
   };
 
-  // 立即保存（用于开关切换等需要即时响应的操作）
   const saveData = _saveDataCore;
-
-  // 防抖保存（用于滑块拖动、输入框输入等高频操作）
   const saveDataDebounced = Utils.debounce(_saveDataCore, 150);
 
-  const openSettingsBtn = document.getElementById("open-settings");
-  if (openSettingsBtn) {
-    openSettingsBtn.onclick = () => {
-      if (chrome.runtime.openOptionsPage) {
-        chrome.runtime.openOptionsPage();
-      } else {
-        window.open(chrome.runtime.getURL("options.html"));
-      }
-    };
-  }
+  // 事件绑定入口
+  const bindEvents = () => {
+    if (els.globalSwitch) {
+      els.globalSwitch.addEventListener("change", () => {
+        if (typeof siteData.on !== "boolean") els.siteSwitch.checked = els.globalSwitch.checked;
+        saveData();
+      });
+    }
+    if (els.siteSwitch) els.siteSwitch.addEventListener("change", saveData);
+    els.modeRadios.forEach((r) => r.addEventListener("change", () => {
+      updateMappingUI(data, siteData);
+      saveData();
+    }));
 
+    els.typoRanges.forEach((r) => r.addEventListener("input", saveDataDebounced));
+    if (els.typoSwitch) {
+      els.typoSwitch.addEventListener("change", () => {
+        els.typoCard.style.opacity = els.typoSwitch.checked ? "1" : "0.5";
+        els.typoCard.style.pointerEvents = els.typoSwitch.checked ? "auto" : "none";
+        saveData();
+      });
+    }
+
+    if (els.selectorStd) els.selectorStd.addEventListener("input", saveDataDebounced);
+    if (els.selectorMono) els.selectorMono.addEventListener("input", saveDataDebounced);
+    if (els.selectorMath) els.selectorMath.addEventListener("input", saveDataDebounced);
+    if (els.selectorExclude) els.selectorExclude.addEventListener("input", saveDataDebounced);
+    if (els.selectorPickButton) els.selectorPickButton.addEventListener("click", startSelectorPicker);
+
+    if (els.progressSwitch) els.progressSwitch.addEventListener("change", saveData);
+    if (els.progressColor) els.progressColor.addEventListener("input", saveDataDebounced);
+    if (els.focusSwitch) els.focusSwitch.addEventListener("change", saveData);
+    if (els.darkSwitch) els.darkSwitch.addEventListener("change", saveData);
+    if (els.readtimeSwitch) els.readtimeSwitch.addEventListener("change", saveData);
+
+    if (els.shortcutsSwitch) {
+      els.shortcutsSwitch.addEventListener("change", () => {
+        const isEnabled = els.shortcutsSwitch.checked;
+        const listContainer = document.getElementById("shortcuts-list-container");
+        if (listContainer) {
+          listContainer.style.opacity = isEnabled ? "1" : "0.5";
+          listContainer.style.pointerEvents = isEnabled ? "auto" : "none";
+        }
+        saveData();
+      });
+    }
+    if (els.shortcutsConfigBtn) {
+      els.shortcutsConfigBtn.addEventListener("click", () => {
+        const isEdge = navigator.userAgent.includes("Edg/");
+        const url = isEdge ? "edge://extensions/shortcuts" : "chrome://extensions/shortcuts";
+        chrome.tabs.create({ url });
+      });
+    }
+
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area === "sync" && changes.settings) {
+        if (skipNextSync) { skipNextSync = false; return; }
+        refreshUI();
+      }
+    });
+
+    els.selectors.forEach((input) => {
+      const dropdown = input.closest(".setting-item").querySelector(".dropdown-list");
+      input.addEventListener("input", () => {
+        saveDataDebounced();
+        renderDropdown(dropdown, input.value, input);
+      });
+      input.addEventListener("focus", () => {
+        document.querySelectorAll(".dropdown-list").forEach((d) => (d.style.display = "none"));
+        renderDropdown(dropdown, input.value, input);
+        dropdown.style.display = "block";
+      });
+    });
+
+    const pickTargetDropdown = document.getElementById("selector-pick-dropdown");
+    if (els.selectorPickTarget && pickTargetDropdown) {
+      els.selectorPickTarget.addEventListener("click", () => {
+        document.querySelectorAll(".dropdown-list").forEach((d) => (d.style.display = "none"));
+        renderPickTargetDropdown(pickTargetDropdown, els.selectorPickTarget);
+      });
+    }
+
+    document.addEventListener("click", (e) => {
+      if (!e.target.closest(".setting-item") || e.target.closest(".setting-label")) {
+        document.querySelectorAll(".dropdown-list").forEach((d) => (d.style.display = "none"));
+      }
+    });
+
+    document.querySelectorAll(".reset-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const key = btn.dataset.target;
+        const input = Array.from(els.selectors).find((s) => s.dataset.key === key);
+        if (input) { input.value = ""; saveData(); }
+      });
+    });
+
+    const openSettingsBtn = document.getElementById("open-settings");
+    if (openSettingsBtn) {
+      openSettingsBtn.onclick = () => {
+        if (chrome.runtime.openOptionsPage) chrome.runtime.openOptionsPage();
+        else window.open(chrome.runtime.getURL("options.html"));
+      };
+    }
+
+    const btnSavePreset = document.getElementById("btn-save-preset");
+    if (btnSavePreset) {
+      btnSavePreset.addEventListener("click", () => {
+        const presetInput = document.getElementById("new-preset-name");
+        const name = presetInput.value.trim() || `方案 ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+        const currentMapping = {};
+        els.selectors.forEach((sel) => (currentMapping[sel.dataset.key] = sel.value));
+        const currentTypo = {};
+        els.typoRanges.forEach((r) => (currentTypo[r.dataset.key] = r.value));
+        Storage.get(["schemes"]).then(async (res) => {
+          const schemes = res.schemes || [];
+          schemes.push({ name, mapping: currentMapping, typo: currentTypo });
+          await Storage.set({ schemes });
+          presetInput.value = "";
+          loadSchemes();
+        });
+      });
+    }
+  };
+
+  // UI 辅助函数
   function updateTypoLabel(input) {
     const key = input.dataset.key;
     const val = input.value;
-    const labelMap = {
-      lineHeight: "lh-val",
-      fontSize: "fs-val",
-      fontWeight: "fw-val",
-    };
+    const labelMap = { lineHeight: "lh-val", fontSize: "fs-val", fontWeight: "fw-val" };
     const el = document.getElementById(labelMap[key]);
     if (el) {
       if (key === "fontSize") el.innerText = val + "%";
@@ -292,274 +427,55 @@ document.addEventListener("DOMContentLoaded", async () => {
   function updateTypoSwitchUI() {
     const checkedMode = document.querySelector('input[name="mode"]:checked');
     const isCustom = checkedMode && checkedMode.value === "custom";
-    const activeTypo = DataValidator.ensureTypo(
-      (isCustom ? siteData.typo : data.global.typo) || DEFAULT_TYPO,
-    );
-    els.typoSwitch.checked = activeTypo.enabled === true;
-    els.typoCard.style.opacity = els.typoSwitch.checked ? "1" : "0.5";
-    els.typoCard.style.pointerEvents = els.typoSwitch.checked ? "auto" : "none";
-  }
-
-  // 事件绑定
-  els.globalSwitch.addEventListener("change", () => {
-    if (typeof siteData.on !== "boolean") {
-      els.siteSwitch.checked = els.globalSwitch.checked;
+    const activeTypo = DataValidator.ensureTypo((isCustom ? siteData.typo : data.global.typo) || DEFAULT_TYPO);
+    if (els.typoSwitch) {
+      els.typoSwitch.checked = activeTypo.enabled === true;
+      els.typoCard.style.opacity = els.typoSwitch.checked ? "1" : "0.5";
+      els.typoCard.style.pointerEvents = els.typoSwitch.checked ? "auto" : "none";
     }
-    saveData();
-  });
-
-  els.siteSwitch.addEventListener("change", () => {
-    saveData();
-  });
-  els.modeRadios.forEach((r) =>
-    r.addEventListener("change", () => {
-      updateMappingUI(data, siteData);
-      saveData();
-    }),
-  );
-
-  // 滑块使用防抖处理（高频拖动）
-  els.typoRanges.forEach((r) => r.addEventListener("input", saveDataDebounced));
-  els.typoSwitch.addEventListener("change", () => {
-    els.typoCard.style.opacity = els.typoSwitch.checked ? "1" : "0.5";
-    els.typoCard.style.pointerEvents = els.typoSwitch.checked ? "auto" : "none";
-    saveData(); // 开关用立即保存
-  });
-
-  // 选择器输入框使用防抖处理
-  if (els.selectorStd)
-    els.selectorStd.addEventListener("input", saveDataDebounced);
-  if (els.selectorMono)
-    els.selectorMono.addEventListener("input", saveDataDebounced);
-  if (els.selectorMath)
-    els.selectorMath.addEventListener("input", saveDataDebounced);
-
-  // 阅读增强功能事件绑定
-  if (els.progressSwitch) {
-    els.progressSwitch.addEventListener("change", saveData);
   }
-  if (els.progressColor) {
-    els.progressColor.addEventListener("input", saveDataDebounced);
-  }
-  if (els.focusSwitch) {
-    els.focusSwitch.addEventListener("change", saveData);
-  }
-  if (els.darkSwitch) {
-    els.darkSwitch.addEventListener("change", saveData);
-  }
-  if (els.readtimeSwitch) {
-    els.readtimeSwitch.addEventListener("change", saveData);
-  }
-
-  // 快捷键事件监听
-  if (els.shortcutsSwitch) {
-    els.shortcutsSwitch.addEventListener("change", () => {
-      const isEnabled = els.shortcutsSwitch.checked;
-      const listContainer = document.getElementById("shortcuts-list-container");
-      if (listContainer) {
-        listContainer.style.opacity = isEnabled ? "1" : "0.5";
-        listContainer.style.pointerEvents = isEnabled ? "auto" : "none";
-      }
-      saveData();
-    });
-  }
-  if (els.shortcutsConfigBtn) {
-    els.shortcutsConfigBtn.addEventListener("click", () => {
-      const isEdge = navigator.userAgent.includes("Edg/");
-      const url = isEdge
-        ? "edge://extensions/shortcuts"
-        : "chrome://extensions/shortcuts";
-      chrome.tabs.create({ url });
-    });
-  }
-
-  // 3. 监听外部存储变化（如快捷键触发、高级设置修改等）
-  chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === "sync" && changes.settings) {
-      if (skipNextSync) {
-        skipNextSync = false;
-        return;
-      }
-      refreshUI();
-    }
-  });
-
-  // 输入框交互增强
-  els.selectors.forEach((input) => {
-    const dropdown = input
-      .closest(".setting-item")
-      .querySelector(".dropdown-list");
-    input.addEventListener("input", () => {
-      saveDataDebounced(); // 使用防抖
-      renderDropdown(dropdown, input.value, input);
-    });
-    input.addEventListener("focus", () => {
-      document
-        .querySelectorAll(".dropdown-list")
-        .forEach((d) => (d.style.display = "none"));
-      renderDropdown(dropdown, input.value, input);
-      dropdown.style.display = "block";
-    });
-  });
-
-  // 点击空白处或标签关闭下拉
-  document.addEventListener("click", (e) => {
-    if (
-      !e.target.closest(".setting-item") ||
-      e.target.closest(".setting-label")
-    ) {
-      document
-        .querySelectorAll(".dropdown-list")
-        .forEach((d) => (d.style.display = "none"));
-    }
-  });
-
-  // 重置按钮
-  document.querySelectorAll(".reset-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const key = btn.dataset.target;
-      const input = Array.from(els.selectors).find(
-        (s) => s.dataset.key === key,
-      );
-      if (input) {
-        input.value = "";
-        saveData();
-      }
-    });
-  });
 
   function updateMappingUI(data, siteData) {
     const checkedMode = document.querySelector('input[name="mode"]:checked');
     const mode = checkedMode ? checkedMode.value : "global";
     const isCustom = mode === "custom";
-    els.mappingLabel.innerText = isCustom ? "当前站点定制" : "全局通用设置";
+    if (els.mappingLabel) els.mappingLabel.innerText = isCustom ? "当前站点定制" : "全局通用设置";
 
-    const activeMapping = DataValidator.ensureMapping(
-      isCustom ? siteData.mapping : data.global.mapping,
-    );
-    const activeTypo = DataValidator.ensureTypo(
-      (isCustom ? siteData.typo : data.global.typo) || DEFAULT_TYPO,
-    );
+    const activeMapping = DataValidator.ensureMapping(isCustom ? siteData.mapping : data.global.mapping);
+    const activeTypo = DataValidator.ensureTypo((isCustom ? siteData.typo : data.global.typo) || DEFAULT_TYPO);
 
     els.selectors.forEach((input) => {
       input.value = activeMapping[input.dataset.key] || "";
     });
-
     els.typoRanges.forEach((r) => {
       r.value = activeTypo[r.dataset.key] || DEFAULT_TYPO[r.dataset.key];
       updateTypoLabel(r);
     });
   }
 
-  // 方案预设逻辑
-  const presetContainer = document.getElementById("preset-container");
-  const presetInput = document.getElementById("new-preset-name");
-  const btnSavePreset = document.getElementById("btn-save-preset");
-
-  const loadSchemes = async () => {
-    const res = await Storage.get(["schemes"]);
-    renderSchemes(res.schemes || []);
-  };
-
-  const renderSchemes = (schemes) => {
-    presetContainer.innerHTML = "";
-    if (schemes.length === 0) {
-      presetContainer.innerHTML = '<div class="empty-tip">暂无保存的方案</div>';
-      return;
-    }
-
-    schemes.forEach((s, index) => {
+  function renderPickTargetDropdown(listEl, targetInput) {
+    listEl.innerHTML = "";
+    Object.keys(PICK_TARGET_LABELS).forEach((key) => {
+      const label = PICK_TARGET_LABELS[key];
       const item = document.createElement("div");
-      item.className = "preset-item";
-      const escapedName = document.createElement("span");
-      escapedName.textContent = s.name;
-      item.innerHTML = `
-        <span class="name">${escapedName.innerHTML}</span>
-        <div class="preset-del" data-index="${index}" title="删除方案">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-        </div>
-      `;
-
-      item.addEventListener("click", (e) => {
-        if (e.target.closest(".preset-del")) return;
-        applyScheme(s, item);
+      item.className = "dropdown-item";
+      if (targetInput.dataset.value === key) item.classList.add("active");
+      item.innerText = label;
+      item.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        targetInput.value = label;
+        targetInput.dataset.value = key;
+        listEl.style.display = "none";
       });
-
-      item.querySelector(".preset-del").addEventListener("click", (e) => {
-        e.stopPropagation();
-        deleteScheme(index);
-      });
-
-      presetContainer.appendChild(item);
+      listEl.appendChild(item);
     });
-  };
+    listEl.style.display = "block";
+  }
 
-  const applyScheme = (scheme, itemElement) => {
-    els.selectors.forEach((input) => {
-      input.value = scheme.mapping[input.dataset.key] || "";
-    });
-    els.typoRanges.forEach((r) => {
-      r.value = scheme.typo[r.dataset.key] || DEFAULT_TYPO[r.dataset.key];
-      updateTypoLabel(r);
-    });
-    saveData();
-
-    if (itemElement) {
-      document.querySelectorAll(".preset-item.applied").forEach((el) => {
-        el.classList.remove("applied");
-      });
-      itemElement.classList.add("applied");
-      setTimeout(() => {
-        itemElement.classList.remove("applied");
-      }, 1500);
-    }
-  };
-
-  const deleteScheme = async (index) => {
-    const res = await Storage.get(["schemes"]);
-    const schemes = res.schemes || [];
-    schemes.splice(index, 1);
-    await Storage.set({ schemes });
-    loadSchemes();
-  };
-
-  btnSavePreset.addEventListener("click", () => {
-    const name =
-      presetInput.value.trim() ||
-      `方案 ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
-
-    const currentMapping = {};
-    els.selectors.forEach(
-      (sel) => (currentMapping[sel.dataset.key] = sel.value),
-    );
-
-    const currentTypo = {};
-    els.typoRanges.forEach((r) => (currentTypo[r.dataset.key] = r.value));
-
-    Storage.get(["schemes"]).then(async (res) => {
-      const schemes = res.schemes || [];
-      schemes.push({ name, mapping: currentMapping, typo: currentTypo });
-      await Storage.set({ schemes });
-      presetInput.value = "";
-      loadSchemes();
-    });
-  });
-
-  loadSchemes();
-
-  // 渲染自定义下拉列表
   function renderDropdown(listEl, filterText, targetInput) {
     listEl.innerHTML = "";
-    const filtered = allFonts.filter(
-      (f) =>
-        f.toLowerCase().includes(filterText.toLowerCase()) || filterText === "",
-    );
-
-    if (filtered.length === 0) {
-      listEl.style.display = "none";
-      return;
-    }
-
+    const filtered = allFonts.filter((f) => f.toLowerCase().includes(filterText.toLowerCase()) || filterText === "");
+    if (filtered.length === 0) { listEl.style.display = "none"; return; }
     filtered.forEach((font) => {
       const item = document.createElement("div");
       item.className = "dropdown-item";
@@ -576,14 +492,55 @@ document.addEventListener("DOMContentLoaded", async () => {
     listEl.style.display = "block";
   }
 
-  // 检查版本更新
+  const loadSchemes = async () => {
+    const res = await Storage.get(["schemes"]);
+    renderSchemes(res.schemes || []);
+  };
+
+  const renderSchemes = (schemes) => {
+    const presetContainer = document.getElementById("preset-container");
+    if (!presetContainer) return;
+    presetContainer.innerHTML = "";
+    if (schemes.length === 0) {
+      presetContainer.innerHTML = '<div class="empty-tip">暂无保存的方案</div>';
+      return;
+    }
+    schemes.forEach((s, index) => {
+      const item = document.createElement("div");
+      item.className = "preset-item";
+      const escapedName = document.createElement("span");
+      escapedName.textContent = s.name;
+      item.innerHTML = `<span class="name">${escapedName.innerHTML}</span><div class="preset-del" data-index="${index}" title="删除方案"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></div>`;
+      item.addEventListener("click", (e) => {
+        if (e.target.closest(".preset-del")) return;
+        applyScheme(s, item);
+      });
+      item.querySelector(".preset-del").addEventListener("click", (e) => {
+        e.stopPropagation();
+        const schemesCopy = [...schemes];
+        schemesCopy.splice(index, 1);
+        Storage.set({ schemes: schemesCopy }).then(loadSchemes);
+      });
+      presetContainer.appendChild(item);
+    });
+  };
+
+  const applyScheme = (scheme, itemElement) => {
+    els.selectors.forEach((input) => { input.value = scheme.mapping[input.dataset.key] || ""; });
+    els.typoRanges.forEach((r) => { r.value = scheme.typo[r.dataset.key] || DEFAULT_TYPO[r.dataset.key]; updateTypoLabel(r); });
+    saveData();
+    if (itemElement) {
+      document.querySelectorAll(".preset-item.applied").forEach((el) => el.classList.remove("applied"));
+      itemElement.classList.add("applied");
+      setTimeout(() => itemElement.classList.remove("applied"), 1500);
+    }
+  };
+
   function checkUpdates() {
     const currentVersion = chrome.runtime.getManifest().version;
     const verBadge = document.getElementById("popup-ver-badge");
     if (!verBadge) return;
-
     verBadge.innerText = "v" + currentVersion;
-
     chrome.storage.local.get(["latestRelease", "releaseUrl"], (res) => {
       if (res.latestRelease) {
         const parts1 = res.latestRelease.split('.').map(Number);
@@ -595,20 +552,18 @@ document.addEventListener("DOMContentLoaded", async () => {
           if (p1 > p2) { isNew = true; break; }
           if (p1 < p2) { break; }
         }
-
         if (isNew) {
           verBadge.innerText = "↑ 更新版本";
-          verBadge.style.background = "#fee2e2";
-          verBadge.style.color = "#dc2626";
-          verBadge.style.borderColor = "#fecaca";
-          verBadge.style.cursor = "pointer";
+          verBadge.className = "badge badge-update";
           verBadge.title = "有新版本可更新: v" + res.latestRelease;
-          verBadge.onclick = () => {
-            if (res.releaseUrl) window.open(res.releaseUrl, "_blank");
-            else window.open("https://github.com/Dnzzk2/PureRead/releases", "_blank");
-          };
+          verBadge.onclick = () => window.open(res.releaseUrl || "https://github.com/Dnzzk2/PureRead/releases", "_blank");
         }
       }
     });
   }
+
+  // 执行
+  bindEvents();
+  await init();
+  loadSchemes();
 });
