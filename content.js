@@ -80,8 +80,7 @@ function removeStyles() {
 }
 
 function applyStyles(mapping, typo, selectors) {
-  const font = (name, fallback) =>
-    name ? `font-family: "${name}", ${fallback} !important;` : "";
+  const font = (name, fallback) => (name ? `font-family: "${name}", ${fallback} !important;` : "");
   const selectorConfig =
     typeof selectors === "string"
       ? {
@@ -114,9 +113,7 @@ function applyStyles(mapping, typo, selectors) {
       .split(/\r?\n|,/)
       .map((s) => s.trim())
       .filter((s) => s)
-      .map((s) =>
-        stripPseudo ? s.replace(/::?(before|after)$/i, "").trim() : s,
-      )
+      .map((s) => (stripPseudo ? s.replace(/::?(before|after)$/i, "").trim() : s))
       .filter((s) => s);
 
   const defaultTypo = {
@@ -140,60 +137,34 @@ function applyStyles(mapping, typo, selectors) {
       : defaultTypo.fontWeight;
 
   const inferredEnabled =
-    lineHeight !== defaultTypo.lineHeight ||
-    fontSize !== defaultTypo.fontSize ||
-    fontWeight !== defaultTypo.fontWeight;
-  const typoEnabled =
-    typeof typo.enabled === "boolean" ? typo.enabled : inferredEnabled;
+    lineHeight !== defaultTypo.lineHeight || fontSize !== defaultTypo.fontSize || fontWeight !== defaultTypo.fontWeight;
+  const typoEnabled = typeof typo.enabled === "boolean" ? typo.enabled : inferredEnabled;
 
   const typoOn = typoEnabled === true;
 
   const fontSizeNum = Number(fontSize);
-  const scale = Number.isFinite(fontSizeNum)
-    ? fontSizeNum / 100
-    : Number(defaultTypo.fontSize) / 100;
+  const scale = Number.isFinite(fontSizeNum) ? fontSizeNum / 100 : Number(defaultTypo.fontSize) / 100;
 
-  const getExtra = (key) => {
+  const getExtra = (key, gate = "") => {
     const list = parseSelectorList(selectorConfig.include[key]);
-    return list.length ? `, ${list.join(", ")}` : "";
+    return list.length ? `, ${list.map((s) => `${s}${gate}`).join(", ")}` : "";
   };
 
-  const getExcludeResetRule = () => {
-    const list = parseSelectorList(selectorConfig.exclude, {
-      stripPseudo: true,
-    });
-    if (!list.length) return "";
-
-    const expandedTargets = list.flatMap((selector) => [
-      selector,
-      `${selector} *`,
-      `${selector}::before`,
-      `${selector}::after`,
-      `${selector} *::before`,
-      `${selector} *::after`,
-    ]);
-
-    return `
-    /* 用户排除规则 */
-    ${expandedTargets.join(",\n    ")} {
-      font-family: revert !important;
-      font-size: revert !important;
-      line-height: revert !important;
-      font-weight: revert !important;
-      letter-spacing: revert !important;
-      -webkit-text-stroke-width: revert !important;
-    }`;
-  };
-
-  // 排除规则
+  // 默认内置排除规则
   const exclude = {
     icon: ':not(.fa):not(.fas):not(.far):not(.fab):not(.glyphicon):not(.iconfont):not([class*="fa-" i]):not([class*="icon" i]):not([class*="ico-" i]):not([class*="ico_" i]):not([class*="glyph" i]):not([class*="symbol" i]):not([class*="emoji" i]):not([data-icon]):not([role="img"]):not([aria-hidden="true"]):not(i)',
     code: ':not(pre):not(pre *):not(code):not(code *):not(kbd):not(samp):not([class*="pl-"]):not([class*="blob-code"]):not([class*="highlight"])',
-    media:
-      ":not(video):not(iframe):not(canvas):not(svg):not(svg *):not(img):not(audio)",
-    player:
-      ':not([class*="player"]):not([class*="Player"]):not([class*="video"]):not([class*="Video"])',
+    media: ":not(video):not(iframe):not(canvas):not(svg):not(svg *):not(img):not(audio)",
+    player: ':not([class*="player"]):not([class*="Player"]):not([class*="video"]):not([class*="Video"])',
   };
+
+  const manualExcludeLines = parseSelectorList(selectorConfig.exclude, {
+    stripPseudo: true,
+  });
+  const excludeSelectorStr = manualExcludeLines.length
+    ? manualExcludeLines.flatMap((s) => [s, `${s} *`]).join(", ")
+    : "";
+  const manualExcludeGate = excludeSelectorStr ? `:not(${excludeSelectorStr})` : "";
 
   const css = `
     :root {
@@ -202,7 +173,7 @@ function applyStyles(mapping, typo, selectors) {
     }
 
     /* 标准字体 */
-    body *${exclude.code}${exclude.media}${exclude.player}${exclude.icon}:not(math):not(.katex)${getExtra("standard")} {
+    body *${exclude.code}${exclude.media}${exclude.player}${exclude.icon}:not(math):not(.katex)${manualExcludeGate}${getExtra("standard", manualExcludeGate)} {
       ${font(mapping.standard, "sans-serif")}
     }
 
@@ -210,9 +181,9 @@ function applyStyles(mapping, typo, selectors) {
       typoOn
         ? `
     /* 行高 */
-    p, span, div${exclude.player}:not([class*="danmaku"]):not([class*="bpx"]),
-    li, td, th, label, a, h1, h2, h3, h4, h5, h6,
-    article, section, aside, main, blockquote, figcaption {
+    p${manualExcludeGate}, span${manualExcludeGate}, div${exclude.player}${manualExcludeGate}:not([class*="danmaku"]):not([class*="bpx"]),
+    li${manualExcludeGate}, td${manualExcludeGate}, th${manualExcludeGate}, label${manualExcludeGate}, a${manualExcludeGate}, h1${manualExcludeGate}, h2${manualExcludeGate}, h3${manualExcludeGate}, h4${manualExcludeGate}, h5${manualExcludeGate}, h6${manualExcludeGate},
+    article${manualExcludeGate}, section${manualExcludeGate}, aside${manualExcludeGate}, main${manualExcludeGate}, blockquote${manualExcludeGate}, figcaption${manualExcludeGate} {
       line-height: var(--pr-lh) !important;
     }
 
@@ -220,8 +191,8 @@ function applyStyles(mapping, typo, selectors) {
     ${
       scale !== 1
         ? `
-    p, span${exclude.player}:not([class*="time"]):not([class*="duration"]),
-    li, td, th, article, blockquote, figcaption {
+    p${manualExcludeGate}, span${exclude.player}${manualExcludeGate}:not([class*="time"]):not([class*="duration"]),
+    li${manualExcludeGate}, td${manualExcludeGate}, th${manualExcludeGate}, article${manualExcludeGate}, blockquote${manualExcludeGate}, figcaption${manualExcludeGate} {
       font-size: calc(1em * var(--pr-fs)) !important;
     }`
         : ""
@@ -233,12 +204,12 @@ function applyStyles(mapping, typo, selectors) {
         ? parseInt(fontWeight) > 0
           ? `
     /* 正值：使用 text-stroke 加粗 */
-    body *:not([class*="icon" i]):not([class*="ico-" i]):not([class*="ico_" i]):not(.iconfont):not([data-icon]):not([role="img"]):not([aria-hidden="true"]):not(i)${exclude.media} {
+    body *:not([class*="icon" i]):not([class*="ico-" i]):not([class*="ico_" i]):not(.iconfont):not([data-icon]):not([role="img"]):not([aria-hidden="true"]):not(i)${exclude.media}${manualExcludeGate} {
       -webkit-text-stroke-width: ${fontWeight / 500}px;
     }`
           : `
     /* 负值：使用 font-weight 减细 + letter-spacing 视觉优化 */
-    body *:not([class*="icon" i]):not([class*="ico-" i]):not([class*="ico_" i]):not(.iconfont):not([data-icon]):not([role="img"]):not([aria-hidden="true"]):not(i)${exclude.media}:not(h1):not(h2):not(h3) {
+    body *:not([class*="icon" i]):not([class*="ico-" i]):not([class*="ico_" i]):not(.iconfont):not([data-icon]):not([role="img"]):not([aria-hidden="true"]):not(i)${exclude.media}:not(h1):not(h2):not(h3)${manualExcludeGate} {
       font-weight: lighter !important;
       letter-spacing: ${Math.abs(parseInt(fontWeight)) / 400}px;
     }`
@@ -249,24 +220,22 @@ function applyStyles(mapping, typo, selectors) {
     }
 
     /* 代码块 */
-    body pre, body code, body kbd, body samp,
-    body pre *, body code *, body kbd *, body samp *,
-    body .blob-code, body .blob-code *, body .text-mono, body .mono,
-    [class*="pl-"], .blob-code-inner, .blob-code-inner *,
-    div.highlight pre, div.highlight pre *,
-    pre[class*="language"], pre[class*="language"] *,
-    code[class*="language"], code[class*="language"] *${getExtra("mono")} {
+    body pre${manualExcludeGate}, body code${manualExcludeGate}, body kbd${manualExcludeGate}, body samp${manualExcludeGate},
+    body pre *${manualExcludeGate}, body code *${manualExcludeGate}, body kbd *${manualExcludeGate}, body samp *${manualExcludeGate},
+    body .blob-code${manualExcludeGate}, body .blob-code *${manualExcludeGate}, body .text-mono${manualExcludeGate}, body .mono${manualExcludeGate},
+    [class*="pl-"]${manualExcludeGate}, .blob-code-inner${manualExcludeGate}, .blob-code-inner *${manualExcludeGate},
+    div.highlight pre${manualExcludeGate}, div.highlight pre *${manualExcludeGate},
+    pre[class*="language"]${manualExcludeGate}, pre[class*="language"] *${manualExcludeGate},
+    code[class*="language"]${manualExcludeGate}, code[class*="language"] *${manualExcludeGate}${getExtra("mono", manualExcludeGate)} {
       ${font(mapping.mono, "monospace")}
       line-height: 1.4 !important;
     }
 
     /* 数学公式 */
-    body math, body math *, body .mjx-chtml, body .mjx-chtml *,
-    body .katex, body .katex *${getExtra("math")} {
+    body math${manualExcludeGate}, body math *${manualExcludeGate}, body .mjx-chtml${manualExcludeGate}, body .mjx-chtml *${manualExcludeGate},
+    body .katex${manualExcludeGate}, body .katex *${manualExcludeGate}${getExtra("math", manualExcludeGate)} {
       ${font(mapping.math, "serif")}
     }
-
-    ${getExcludeResetRule()}
   `;
 
   let style = document.getElementById("pure-read-injector");
@@ -644,13 +613,7 @@ function isUniqueSelector(selector) {
 }
 
 function isMeaningfulClassName(name) {
-  return (
-    !!name &&
-    name.length >= 2 &&
-    name.length <= 40 &&
-    !/^\d+$/.test(name) &&
-    !name.startsWith("pure-read-")
-  );
+  return !!name && name.length >= 2 && name.length <= 40 && !/^\d+$/.test(name) && !name.startsWith("pure-read-");
 }
 
 function getNthOfTypeIndex(element) {
@@ -751,7 +714,7 @@ function updatePickerTip(element, selector) {
           </div>
           <span style="font-size:11px; font-weight:800; color:${PICKER_FLOAT_COLORS.primary}; text-transform:uppercase; letter-spacing:0.05em;">PR Picker</span>
         </div>
-        <div style="font-size:10px; font-weight:600; color:${PICKER_FLOAT_COLORS.textMuted}; background:${PICKER_FLOAT_COLORS.surfaceAlt}; padding:2px 6px; border-radius:4px;">${PICKER_TARGET_LABELS[target].split(' · ')[1] || PICKER_TARGET_LABELS[target]}</div>
+        <div style="font-size:10px; font-weight:600; color:${PICKER_FLOAT_COLORS.textMuted}; background:${PICKER_FLOAT_COLORS.surfaceAlt}; padding:2px 6px; border-radius:4px;">${PICKER_TARGET_LABELS[target].split(" · ")[1] || PICKER_TARGET_LABELS[target]}</div>
       </div>
 
       <!-- Main Info -->
@@ -805,13 +768,8 @@ function updatePickerOverlay(element) {
   const tipHeight = tip.offsetHeight || 110;
   const preferredTop = rect.top - 12;
   const nextTop =
-    preferredTop > tipHeight + 24
-      ? preferredTop
-      : Math.min(window.innerHeight - tipHeight - 12, rect.bottom + 12);
-  const nextLeft = Math.min(
-    Math.max(12, rect.left),
-    Math.max(12, window.innerWidth - tipWidth - 12),
-  );
+    preferredTop > tipHeight + 24 ? preferredTop : Math.min(window.innerHeight - tipHeight - 12, rect.bottom + 12);
+  const nextLeft = Math.min(Math.max(12, rect.left), Math.max(12, window.innerWidth - tipWidth - 12));
 
   tip.style.left = `${nextLeft}px`;
   tip.style.top = `${nextTop}px`;
@@ -837,10 +795,7 @@ function teardownSelectorPicker({ silent = false } = {}) {
 
 async function savePickedSelector(target, selector) {
   const result = await getSyncStorage(["settings"]);
-  const settings =
-    result.settings && typeof result.settings === "object"
-      ? result.settings
-      : createDefaultSettings();
+  const settings = result.settings && typeof result.settings === "object" ? result.settings : createDefaultSettings();
 
   if (!settings.global || typeof settings.global !== "object") {
     settings.global = createDefaultSettings().global;
@@ -869,10 +824,7 @@ async function savePickedSelector(target, selector) {
 
 async function restorePickedSelector(previousSelectors) {
   const result = await getSyncStorage(["settings"]);
-  const settings =
-    result.settings && typeof result.settings === "object"
-      ? result.settings
-      : createDefaultSettings();
+  const settings = result.settings && typeof result.settings === "object" ? result.settings : createDefaultSettings();
 
   if (!settings.global || typeof settings.global !== "object") {
     settings.global = createDefaultSettings().global;
@@ -1103,7 +1055,7 @@ function enableFocusMode(opacity = 0.08) {
   style.id = "pure-read-focus-style";
   style.textContent = `
     /* ═══ 专注模式 ═══ */
-    
+
     /* 第一步：淡化所有干扰元素 */
     aside,
     [class*="sidebar"],
@@ -1258,7 +1210,6 @@ function updateFeatures(settings) {
   }
 }
 
-
 // ═══════════════════════════════════════════════════════════
 // 智能暗色模式 (Smart Dark Mode)
 // 策略：多维度检测网站原生暗色支持，优先触发原生暗色，不支持时才 fallback
@@ -1276,15 +1227,10 @@ function isDarkPage() {
   if (!document.body) return false;
 
   const isDark = (color) => {
-    if (!color || color === "rgba(0, 0, 0, 0)" || color === "transparent")
-      return false;
+    if (!color || color === "rgba(0, 0, 0, 0)" || color === "transparent") return false;
     const rgb = color.match(/\d+/g);
     if (!rgb) return false;
-    const brightness =
-      (parseInt(rgb[0]) * 299 +
-        parseInt(rgb[1]) * 587 +
-        parseInt(rgb[2]) * 114) /
-      1000;
+    const brightness = (parseInt(rgb[0]) * 299 + parseInt(rgb[1]) * 587 + parseInt(rgb[2]) * 114) / 1000;
     return brightness < 128;
   };
 
@@ -1325,10 +1271,7 @@ function collectMediaDarkRules() {
     for (const rule of rules) {
       if (rule instanceof CSSMediaRule) {
         const condText = rule.conditionText || rule.media.mediaText || "";
-        if (
-          condText.includes("prefers-color-scheme") &&
-          condText.includes("dark")
-        ) {
+        if (condText.includes("prefers-color-scheme") && condText.includes("dark")) {
           for (const innerRule of rule.cssRules) {
             darkCssTexts.push(innerRule.cssText);
           }
@@ -1365,16 +1308,7 @@ const THEME_ATTRS = [
   "data-scheme",
 ];
 
-const DARK_CLASSES = [
-  "dark",
-  "dark-mode",
-  "dark-theme",
-  "theme-dark",
-  "night-mode",
-  "night",
-  "darkmode",
-  "nightmode",
-];
+const DARK_CLASSES = ["dark", "dark-mode", "dark-theme", "theme-dark", "night-mode", "night", "darkmode", "nightmode"];
 
 function detectNativeDarkMode() {
   const el = document.documentElement;
@@ -1387,9 +1321,7 @@ function detectNativeDarkMode() {
       if (!target) continue;
       const val = target.getAttribute(attr);
       if (val === null || val === "dark") continue;
-      const regex = new RegExp(
-        `\\[${attr}[~|^$*]?=["']?dark(?:["']\\]|\\])`
-      );
+      const regex = new RegExp(`\\[${attr}[~|^$*]?=["']?dark(?:["']\\]|\\])`);
       if (countRulesMatching(regex) >= 2) {
         return {
           method: "attr",
@@ -1538,10 +1470,7 @@ function disableDarkMode() {
   switch (_prDarkState.method) {
     case "attr":
       if (_prDarkState.originalValue !== null) {
-        _prDarkState.target.setAttribute(
-          _prDarkState.key,
-          _prDarkState.originalValue
-        );
+        _prDarkState.target.setAttribute(_prDarkState.key, _prDarkState.originalValue);
       } else {
         _prDarkState.target.removeAttribute(_prDarkState.key);
       }
