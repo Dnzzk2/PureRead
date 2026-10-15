@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <style>
-      @import url("https://fontsapi.zeoseven.com/439/main/result.css");
+      @import url("https://fontsapi.zeoseven.com/144/main/result.css");
 
       /* ═══════════════════════════════════════════════════════════
          PureRead - 典雅排版风格 (Elegant Typography)
@@ -15,9 +15,24 @@
 
       :root {
         /* 核心色彩 */
-        --primary: #2c3e50; /* 普鲁士蓝 - 主色调 */
-        --primary-soft: #ecf0f3; /* 主色的淡化版本 */
+        /* --primary 是「填充底」：开关选中态的轨道、主按钮、下拉选中项 —— 上面压白字或白滑块。
+           --primary-fg 是「前景」：文字、图标、输入框焦点描边 —— 压在卡片/页面底色上。
+           这两个角色在明色下同色，暗色下要求正相反（填充要够深托住白字，前景要够亮压住深底），
+           所以拆成两个变量，暗色各自取值（见下方 dark :root）。 */
+        --primary: #5c6167;
+        --primary-fg: #5c6167;
+        --primary-soft: #ecf0f3; /* 淡化的主色底，配 --primary-fg 一起用 */
         --accent: #c9a227; /* 古铜金 - 点缀色 */
+
+        /* 拾取类型色：取值与 content.js 的 PICKER_TARGET_HUES 一一对应（明暗各一档）。
+           只用在四个拾取按钮的 hover 上 —— 让「哪种颜色＝哪种类型」在入口处就成立，
+           进了页面之后浮窗、选取框、toast 都是同一色相。 */
+        --pick-standard: #2563eb; /* 蓝 */
+        --pick-mono: #7c3aed; /* 紫 */
+        --pick-math: #b45309; /* 琥珀 */
+        --pick-exclude: #be123c; /* 玫红。rose-700 而非 rose-600 #e11d48：
+                                    后者压在本面板底 #faf9f7 上只有 4.46:1，
+                                    不够 12px 文字用的 4.5:1。同 content.js 的取色。 */
 
         /* 背景层次 */
         --bg: #faf9f7; /* 象牙纸色 - 主背景 */
@@ -39,15 +54,36 @@
           0 2px 8px rgba(0, 0, 0, 0.06), 0 8px 24px rgba(0, 0, 0, 0.04);
         --shadow-focus: 0 0 0 3px rgba(44, 62, 80, 0.1);
 
+        /* ═══ 浮动下拉面板 ═══
+           三个下拉（popup 的字体、options 的语言与字体）共用这一组，两边取值完全相同 ——
+           它是同一个控件，落在哪个页面上都该长一样。
+           不复用 --box-bg / --border：那两个是「卡片」的表面色与描边，跟着各页面的底色
+           走；下拉浮在卡片之上，是另一层，得自己有一套。这组值即 popup 原来的呈现，
+           改动只在 options 一侧生效。 */
+        --dropdown-bg: #ffffff;
+        --dropdown-border: #e8e4df;
+        --dropdown-shadow:
+          0 2px 8px rgba(0, 0, 0, 0.06), 0 8px 24px rgba(0, 0, 0, 0.04);
+
         /* 字体栈 */
-        --font: "Huiwen-HKHei", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        --font: "LXGW 975 HazyGo SC 500W", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       }
 
       @media (prefers-color-scheme: dark) {
         :root {
-          --primary: #7c9ab5;
+          /* 填充底：白字压在上面对比度 4.59:1，过 AA。
+             原值 #7c9ab5 只有 2.94:1 —— 暗色下按钮/开关的白字发虚，故压深一档。 */
+          --primary: #61788d;
+          /* 前景：压在 #1a1a1c 上 5.91:1、压在卡片 #242426 上 5.27:1。
+             这里必须留在亮的一档，跟着 --primary 压深会掉到 3.79:1。 */
+          --primary-fg: #7c9ab5;
           --primary-soft: rgba(124, 154, 181, 0.12);
           --accent: #d4af37;
+          /* 拾取类型色，暗色一档：见亮色 :root 的说明。 */
+          --pick-standard: #60a5fa;
+          --pick-mono: #a78bfa;
+          --pick-math: #fbbf24;
+          --pick-exclude: #fb7185;
           --bg: #1a1a1c;
           --box-bg: #242426;
           --border: #3a3a3c;
@@ -57,6 +93,11 @@
           --text-muted: #6a6a6a;
           --shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
           --shadow-hover: 0 4px 16px rgba(0, 0, 0, 0.3);
+          /* 浮动下拉面板，见亮色 :root 的说明。暗色下这一层比 --bg（#1a1a1c）和
+             options 的 --card-bg（#1a1a1e）都亮一档，压在哪个底上都拎得起来。 */
+          --dropdown-bg: #242426;
+          --dropdown-border: #3a3a3c;
+          --dropdown-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
         }
       }
 
@@ -88,6 +129,18 @@
         text-rendering: optimizeLegibility;
       }
 
+      /* 表单控件与 <code>/<kbd> 默认不继承字体，这里统一强制继承 body 字体 */
+      code,
+      kbd,
+      pre,
+      samp,
+      button,
+      input,
+      textarea,
+      select {
+        font-family:inherit;
+      }
+
       /* ═══ 头部区域 ═══ */
       .header {
         display: flex;
@@ -103,14 +156,14 @@
         gap: 10px;
       }
       .logo img {
-        width: 22px;
-        height: 22px;
+        width: 24px;
+        height: 24px;
       }
       .logo span {
         font-family: var(--font);
         font-weight: 800;
         font-size: 20px;
-        color: var(--primary);
+        color: var(--primary-fg);
         letter-spacing: -0.3px;
       }
       .header-actions {
@@ -128,7 +181,7 @@
       }
       .settings-link:hover,
       .gh-link:hover {
-        color: var(--primary);
+        color: var(--primary-fg);
       }
       .settings-link:hover {
         transform: rotate(90deg);
@@ -151,6 +204,9 @@
         margin-bottom: 20px;
         border: 1px solid var(--border);
         box-shadow: var(--shadow);
+        transition:
+          box-shadow 0.3s ease,
+          transform 0.2s ease;
       }
       .row {
         display: flex;
@@ -201,11 +257,6 @@
       }
 
       /* ═══ 分段控制器 ═══ */
-      /* CSP: avoid inline event handlers */
-      #configure-shortcuts:hover {
-        background: var(--border) !important;
-      }
-
       .segmented-control {
         display: flex;
         position: relative;
@@ -254,7 +305,27 @@
         transform: translateX(100%);
       }
       .segmented-control input:checked + label {
-        color: var(--primary);
+        color: var(--primary-fg);
+      }
+
+      /* ═══ 不支持的页面：禁用站点级控件 ═══ */
+      .switch input:disabled + .slider {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+      .segmented-control.is-disabled {
+        opacity: 0.45;
+        pointer-events: none;
+      }
+      .unsupported-hint {
+        display: none;
+        margin: 10px 0 0;
+        font-size: 11px;
+        line-height: 1.6;
+        color: var(--text-muted);
+      }
+      #site-card.is-unsupported .unsupported-hint {
+        display: block;
       }
 
       /* ═══ 章节标题 - 排版风格 ═══ */
@@ -327,7 +398,7 @@
         transition: var(--transition);
       }
       .font-input:focus {
-        border-color: var(--primary);
+        border-color: var(--primary-fg);
         box-shadow: var(--shadow-focus);
       }
       .font-input::placeholder {
@@ -345,9 +416,14 @@
         display: flex;
         align-items: center;
       }
-      .font-input:focus ~ .chevron-icon {
+      /* 箭头跟列表真实的开合状态走，不跟输入框的 :focus。
+         挂 :focus 时选完字体列表就收了，可输入框还聚焦着，箭头会一直朝上支着 ——
+         跟 options 那个下拉（挂 aria-expanded，列表收了箭头就翻回去）表现对不上。
+         类加在 .setting-item 上：.dropdown-list 是 .input-group 的兄弟节点，
+         不是子节点，用 closest(".input-group") 找不到。 */
+      .setting-item.dropdown-open .chevron-icon {
         transform: rotate(180deg);
-        color: var(--primary);
+        color: var(--primary-fg);
         opacity: 1;
       }
       .chevron-icon svg {
@@ -389,17 +465,23 @@
         top: calc(100% + 6px);
         left: 0;
         right: 0;
-        background: var(--box-bg);
-        border: 1px solid var(--border);
+        background: var(--dropdown-bg);
+        border: 1px solid var(--dropdown-border);
         border-radius: 6px;
         max-height: 200px;
         overflow-y: auto;
-        box-shadow: var(--shadow-hover);
+        box-shadow: var(--dropdown-shadow);
         z-index: 100;
         display: none;
         padding: 6px;
+        animation: dropdownFade 0.2s ease;
       }
       .dropdown-item {
+        /* 固定行高：列表项各用自己的字体渲染，字面高度不一，若不定死行高，
+           虚拟列表（shared.js 的 DROPDOWN_ITEM_HEIGHT）的滚动换算就会错位。 */
+        height: 32px;
+        box-sizing: border-box;
+        line-height: 16px;
         padding: 8px 12px;
         font-size: 11.5px;
         border-radius: 4px;
@@ -410,70 +492,35 @@
         overflow: hidden;
         text-overflow: ellipsis;
       }
+      /* 虚拟列表的上下占位块：只撑高度，不参与交互 */
+      .dropdown-spacer {
+        pointer-events: none;
+      }
       .dropdown-item:hover {
         background: var(--primary-soft);
-        color: var(--primary);
+        color: var(--primary-fg);
       }
       .dropdown-item.active {
         background: var(--primary);
         color: white;
       }
 
-      /* ═══ 滑块控件 ═══ */
-      .slider-container {
-        display: flex;
-        align-items: center;
-        gap: 14px;
-        margin-top: 6px;
-      }
-      input[type="range"] {
-        flex: 1;
-        height: 3px;
-        background: var(--border);
-        border-radius: 2px;
-        appearance: none;
-        cursor: pointer;
-      }
-      input[type="range"]::-webkit-slider-thumb {
-        appearance: none;
-        width: 16px;
-        height: 16px;
-        background: var(--box-bg);
-        border: 2px solid var(--primary);
-        border-radius: 50%;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-        transition: 0.15s ease;
-      }
-      input[type="range"]::-webkit-slider-thumb:hover {
-        background: var(--primary);
-        transform: scale(1.1);
-      }
-      .slider-val {
-        font-size: 11px;
-        font-weight: 700;
-        font-family: var(--font);
-        color: var(--primary);
-        background: var(--primary-soft);
-        padding: 3px 8px;
-        border-radius: 3px;
-        min-width: 36px;
-        text-align: center;
-      }
-
       /* ═══ 方案预设列表 ═══ */
+      /* 行高压到 36px：方案名是一行 13px 文字，撑不出 47px 的内容，
+         多出来的全是内边距。间距同步收窄，4 行省下约 55px。 */
       .preset-list {
         display: grid;
         grid-template-columns: 1fr;
-        gap: 10px;
+        gap: 6px;
       }
       .preset-item {
         background: var(--box-bg);
         border: 1px solid var(--border);
         border-radius: 8px;
-        padding: 12px 16px;
+        padding: 8px 12px;
         position: relative;
         cursor: pointer;
-        transition: all 0.25s cubic-bezier(0.2, 0, 0, 1);
+        transition: all 0.2s ease;
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -487,6 +534,9 @@
       .preset-item .name {
         font-size: 13px;
         font-weight: 600;
+        /* 定死行高：默认 1.6 会给出 20.8px 的行盒，是这行唯一撑高的东西。
+           字体名一般不超过窗口宽度，用不着一倍半的行距。 */
+        line-height: 1.4;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -500,6 +550,13 @@
         align-items: center;
         padding: 2px;
         border-radius: 4px;
+      }
+      /* 这个 svg 原本没写尺寸。它是 flex 项，宽高 auto，而 .preset-del 的宽度
+         又由内容决定 —— 循环依赖，Chrome 一律解析成 0×0：图标整个不显示，
+         可点区域只剩 2px 内边距撑出的 4×4。本文件其余图标都写了宽高，只有它漏了。 */
+      .preset-del svg {
+        width: 14px;
+        height: 14px;
       }
       .preset-item:hover .preset-del {
         opacity: 0.6;
@@ -525,7 +582,7 @@
         transition: var(--transition);
       }
       .save-input-group:focus-within {
-        border-color: var(--primary);
+        border-color: var(--primary-fg);
         box-shadow: var(--shadow-focus);
       }
       .preset-input {
@@ -555,6 +612,9 @@
         letter-spacing: 0.5px;
         cursor: pointer;
         transition: var(--transition);
+        position: relative;
+        overflow: hidden;
+        font-family: var(--font);
       }
       .btn-save:hover {
         opacity: 0.9;
@@ -587,730 +647,47 @@
         letter-spacing: 0.3px;
       }
 
-      /* ═══ 颜色选择器 ═══ */
-      .color-picker {
-        -webkit-appearance: none;
-        appearance: none;
-        width: 28px;
-        height: 28px;
-        border: 2px solid var(--border);
-        border-radius: 6px;
-        cursor: pointer;
-        padding: 0;
-        background: transparent;
-        transition: var(--transition);
+      /* ═══ 系统字体列表不可用提示（Firefox 等） ═══ */
+      /* 古铜金描边 + 左侧粗色条：在象牙纸底色上足够跳，又不至于像报错 */
+      .font-limit-hint {
+        display: none;
+        gap: 8px;
+        margin-bottom: 14px;
+        padding: 9px 11px;
+        font-size: 11px;
+        line-height: 1.6;
+        color: var(--text-light);
+        background: rgba(201, 162, 39, 0.07);
+        border: 1px solid rgba(201, 162, 39, 0.3);
+        border-left: 3px solid var(--accent);
+        border-radius: 5px;
       }
-      .color-picker::-webkit-color-swatch-wrapper {
-        padding: 2px;
+      .font-limit-hint.is-visible {
+        display: flex;
       }
-      .color-picker::-webkit-color-swatch {
-        border-radius: 3px;
-        border: none;
-      }
-      .color-picker:hover {
-        border-color: var(--primary);
-        transform: scale(1.05);
-      }
-      .color-picker:focus {
-        outline: none;
-        border-color: var(--primary);
-        box-shadow: var(--shadow-focus);
-      }
-
-      /* ═══ 站点级徽章 ═══ */
-      .badge-site {
-        font-size: 9px;
-        font-weight: 600;
+      .font-limit-hint svg {
+        flex: none;
+        width: 13px;
+        height: 13px;
+        margin-top: 2px;
         color: var(--accent);
-        background: rgba(201, 162, 39, 0.12);
-        padding: 2px 6px;
-        border-radius: 3px;
-        text-transform: uppercase;
-        letter-spacing: 0.3px;
+      }
+      .font-limit-hint b {
+        color: var(--text);
+        font-weight: 700;
       }
       @media (prefers-color-scheme: dark) {
-        .badge-site {
-          background: rgba(212, 175, 55, 0.15);
+        .font-limit-hint {
+          background: rgba(212, 175, 55, 0.09);
+          border-color: rgba(212, 175, 55, 0.32);
         }
       }
 
-      /* ═══ 快捷键样式 (统一) ═══ */
-      .shortcuts-hint {
-        margin-top: 4px;
-      }
-      .shortcuts-title {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        font-size: 11px;
-        font-weight: 500;
-        color: var(--text-muted);
-        margin: 10px 0;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-      }
-      .shortcuts-list {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-      }
-      .shortcut-item {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 4px 2px;
-        font-size: 13px;
-        color: var(--text-light);
-        border-bottom: 1px dashed var(--border);
-      }
-      .shortcut-item:last-child {
-        border-bottom: none;
-      }
-      .shortcut-keys {
-        display: flex;
-        gap: 4px;
-        align-items: center;
-      }
-      kbd {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-width: 18px;
-        height: 18px;
-        padding: 0 4px;
-        font-family: var(--font);
-        font-size: 10px;
-        font-weight: 700;
-        color: var(--primary);
-        background: var(--primary-soft);
-        border: 1px solid var(--border-strong);
-        border-radius: 3px;
-        box-shadow: 0 1px 0 rgba(0,0,0,0.05);
-      }
-    </style>
-  </head>
-  <body>
-    <div class="header">
-      <div class="logo">
-        <img src="icon.png" />
-      </div>
-      <div class="header-actions">
-        <div id="popup-ver-badge" style="font-size: 10px; font-weight: 600; font-family: var(--font); color: var(--text-muted); padding: 0 6px; border-radius: 4px; background: transparent; border: 1px solid var(--border); transition: all 0.2s; display: flex; align-items: center; justify-content: center; height: 18px; margin-right: 4px;"></div>
-        <div class="settings-link" id="open-settings" title="高级设置">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <circle cx="12" cy="12" r="3"></circle>
-            <path
-              d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"
-            ></path>
-          </svg>
-        </div>
-        <a
-          href="https://github.com/Dnzzk2/PureRead"
-          target="_blank"
-          class="gh-link"
-        >
-          <svg viewBox="0 0 24 24">
-            <path
-              d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"
-            />
-          </svg>
-        </a>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="row">
-        <span>总开关</span
-        ><label class="switch"
-          ><input type="checkbox" id="global-switch" checked /><span
-            class="slider"
-          ></span
-        ></label>
-      </div>
-      <div
-        style="
-          height: 1px;
-          background: var(--border);
-          margin: 10px 0;
-          opacity: 0.5;
-        "
-      ></div>
-      <div class="row">
-        <span
-          ><code
-            id="domain-display"
-            style="
-              background: var(--primary-soft);
-              color: var(--primary);
-              padding: 2px 6px;
-              border-radius: 4px;
-              font-family: monospace;
-              font-size: 11px;
-            "
-            >...</code
-          ></span
-        ><label class="switch"
-          ><input type="checkbox" id="site-switch" checked /><span
-            class="slider"
-          ></span
-        ></label>
-      </div>
-      <div class="segmented-control">
-        <input
-          type="radio"
-          name="mode"
-          id="mode-global"
-          value="global"
-          checked
-        /><label for="mode-global">跟随全局</label
-        ><input
-          type="radio"
-          name="mode"
-          id="mode-custom"
-          value="custom"
-        /><label for="mode-custom">单独定制</label>
-        <div class="selection-bar"></div>
-      </div>
-    </div>
-
-    <div class="section-title"><i></i><span>阅读增强</span></div>
-    <div class="card">
-      <!-- 阅读进度条 -->
-      <div class="row" style="margin-bottom: 14px">
-        <div style="display: flex; align-items: center; gap: 10px">
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            style="color: var(--primary)"
-          >
-            <line x1="12" y1="20" x2="12" y2="10"></line>
-            <line x1="18" y1="20" x2="18" y2="4"></line>
-            <line x1="6" y1="20" x2="6" y2="16"></line>
-          </svg>
-          <span>阅读进度条</span>
-        </div>
-        <div style="display: flex; align-items: center; gap: 10px">
-          <input
-            type="color"
-            id="progress-color"
-            value="#10b981"
-            class="color-picker"
-            title="选择颜色"
-          />
-          <label class="switch"
-            ><input type="checkbox" id="progress-switch" /><span
-              class="slider"
-            ></span
-          ></label>
-        </div>
-      </div>
-      <!-- 专注模式（站点级） -->
-      <div class="row">
-        <div style="display: flex; align-items: center; gap: 10px">
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            style="color: var(--primary)"
-          >
-            <circle cx="12" cy="12" r="10"></circle>
-            <circle cx="12" cy="12" r="6"></circle>
-            <circle cx="12" cy="12" r="2"></circle>
-          </svg>
-          <span>专注模式</span>
-          <span class="badge-site">仅此站点</span>
-        </div>
-        <label class="switch"
-          ><input type="checkbox" id="focus-switch" /><span
-            class="slider"
-          ></span
-        ></label>
-      </div>
-      <!-- 分隔线 -->
-      <div
-        style="
-          height: 1px;
-          background: var(--border);
-          margin: 14px 0;
-          opacity: 0.5;
-        "
-      ></div>
-      <!-- 暗色模式 -->
-      <div class="row" style="margin-bottom: 14px">
-        <div style="display: flex; align-items: center; gap: 10px">
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            style="color: var(--primary)"
-          >
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-          </svg>
-          <span>智能暗色</span>
-        </div>
-        <label class="switch"
-          ><input type="checkbox" id="dark-switch" /><span class="slider"></span
-        ></label>
-      </div>
-      <!-- 阅读时间 -->
-      <div class="row">
-        <div style="display: flex; align-items: center; gap: 10px">
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            style="color: var(--primary)"
-          >
-            <circle cx="12" cy="12" r="10"></circle>
-            <polyline points="12 6 12 12 16 14"></polyline>
-          </svg>
-          <span>阅读时间</span>
-        </div>
-        <label class="switch"
-          ><input type="checkbox" id="readtime-switch" /><span
-            class="slider"
-          ></span
-        ></label>
-      </div>
-      <!-- 快捷键提示 -->
-      <div
-        style="
-          height: 1px;
-          background: var(--border);
-          margin: 14px 0;
-          opacity: 0.5;
-        "
-      ></div>
-        <div class="row" style="margin-top: 2px; margin-bottom: 12px">
-          <div style="display: flex; align-items: center; gap: 8px">
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2.5"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              style="color: var(--text-muted)"
-            >
-              <rect x="2" y="4" width="20" height="16" rx="2" ry="2"></rect>
-              <path d="M6 8h.001M10 8h.001M14 8h.001M18 8h.001M8 12h.001M12 12h.001M16 12h.001M6 16h8"></path>
-            </svg>
-            <span style="font-size: 12px; font-weight: 500">快捷键启用</span>
-          </div>
-          <div style="display: flex; align-items: center; gap: 10px">
-            <button
-              id="configure-shortcuts"
-              style="
-                font-size: 11px;
-                padding: 3px 8px;
-                background: var(--primary-soft);
-                border: 1px solid var(--border-strong);
-                border-radius: 4px;
-                color: var(--primary);
-                cursor: pointer;
-                font-weight: 600;
-                font-family: var(--font);
-                transition: var(--transition);
-              "
-
-            >
-              自定义
-            </button>
-            <label class="switch"
-              ><input type="checkbox" id="shortcuts-enabled" checked /><span
-                class="slider"
-              ></span
-            ></label>
-          </div>
-        </div>
-
-        <div class="shortcuts-list" id="shortcuts-list-container">
-          <div class="shortcut-item">
-            <span>开关站点</span>
-            <div class="shortcut-keys">
-              <kbd>Alt</kbd><kbd>⇧</kbd><kbd>P</kbd>
-            </div>
-          </div>
-          <div class="shortcut-item">
-            <span>专注模式</span>
-            <div class="shortcut-keys">
-              <kbd>Alt</kbd><kbd>⇧</kbd><kbd>F</kbd>
-            </div>
-          </div>
-          <div class="shortcut-item">
-            <span>暗色模式</span>
-            <div class="shortcut-keys">
-              <kbd>Alt</kbd><kbd>⇧</kbd><kbd>D</kbd>
-            </div>
-          </div>
-          <div class="shortcut-item">
-            <span>阅读时间</span>
-            <div class="shortcut-keys">
-              <kbd>Alt</kbd><kbd>⇧</kbd><kbd>R</kbd>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="section-title"><i></i><span>字体选择</span></div>
-    <div class="card">
-      <div id="loading-tip">正在载入系统字体...</div>
-      <div class="setting-item">
-        <label class="setting-label">标准字体</label>
-        <div class="input-group">
-          <div class="input-icon">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2.5"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <path d="M4 7V4h16v3M9 20h6M12 4v16" />
-            </svg>
-          </div>
-          <input
-            class="font-input"
-            data-key="standard"
-            placeholder="默认无限制"
-            autocomplete="off"
-          />
-          <div class="chevron-icon">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="3"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <polyline points="6 9 12 15 18 9" />
-            </svg>
-          </div>
-          <button class="reset-btn" data-target="standard">
-            <svg viewBox="0 0 20 20">
-              <path
-                d="M13.937 4.211a1 1 0 0 1-1.126 1.653A5 5 0 1 0 15 10a1 1 0 1 1 2 0a7 7 0 1 1-3.063-5.789 M13.539 12.506a1 1 0 1 1-1.078-1.685l3.482-2.227a1 1 0 0 1 1.077 1.685z M18.903 12.41a1 1 0 0 1-1.826.815l-1.508-3.38a1 1 0 1 1 1.826-.815z"
-                fill="currentColor"
-              />
-            </svg>
-          </button>
-        </div>
-        <div class="dropdown-list"></div>
-      </div>
-      <div class="setting-item">
-        <label class="setting-label">代码/等宽</label>
-        <div class="input-group">
-          <div class="input-icon">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2.5"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <polyline points="16 18 22 12 16 6" />
-              <polyline points="8 6 2 12 8 18" />
-            </svg>
-          </div>
-          <input
-            class="font-input"
-            data-key="mono"
-            placeholder="默认等宽"
-            autocomplete="off"
-          />
-          <div class="chevron-icon">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="3"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <polyline points="6 9 12 15 18 9" />
-            </svg>
-          </div>
-          <button class="reset-btn" data-target="mono">
-            <svg viewBox="0 0 20 20">
-              <path
-                d="M13.937 4.211a1 1 0 0 1-1.126 1.653A5 5 0 1 0 15 10a1 1 0 1 1 2 0a7 7 0 1 1-3.063-5.789 M13.539 12.506a1 1 0 1 1-1.078-1.685l3.482-2.227a1 1 0 0 1 1.077 1.685z M18.903 12.41a1 1 0 0 1-1.826.815l-1.508-3.38a1 1 0 1 1 1.826-.815z"
-                fill="currentColor"
-              />
-            </svg>
-          </button>
-        </div>
-        <div class="dropdown-list"></div>
-      </div>
-      <div class="setting-item" style="margin-bottom: 0">
-        <label class="setting-label">数学公式</label>
-        <div class="input-group">
-          <div class="input-icon">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2.5"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </div>
-          <input
-            class="font-input"
-            data-key="math"
-            placeholder="默认衬线"
-            autocomplete="off"
-          />
-          <div class="chevron-icon">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="3"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <polyline points="6 9 12 15 18 9" />
-            </svg>
-          </div>
-          <button class="reset-btn" data-target="math">
-            <svg viewBox="0 0 20 20">
-              <path
-                d="M13.937 4.211a1 1 0 0 1-1.126 1.653A5 5 0 1 0 15 10a1 1 0 1 1 2 0a7 7 0 1 1-3.063-5.789 M13.539 12.506a1 1 0 1 1-1.078-1.685l3.482-2.227a1 1 0 0 1 1.077 1.685z M18.903 12.41a1 1 0 0 1-1.826.815l-1.508-3.38a1 1 0 1 1 1.826-.815z"
-                fill="currentColor"
-              />
-            </svg>
-          </button>
-        </div>
-        <div class="dropdown-list"></div>
-      </div>
-    </div>
-
-    <div class="section-title">
-      <div style="display: flex; align-items: center; gap: 8px">
-        <i></i><span>排版细节 (<span id="mapping-label">全局</span>)</span>
-      </div>
-      <label class="switch" style="transform: scale(0.85); margin-right: -4px; order: 1;">
-        <input type="checkbox" id="typo-switch" />
-        <span class="slider"></span>
-      </label>
-    </div>
-    <div class="card" id="typo-card">
-      <div class="setting-item" style="margin-bottom: 12px">
-        <label
-          class="setting-label"
-          style="display: flex; justify-content: space-between"
-          ><span>行间距</span
-          ><span id="lh-val" class="slider-val">1.6</span></label
-        >
-        <div class="slider-container">
-          <input
-            type="range"
-            class="style-range"
-            data-key="lineHeight"
-            min="1"
-            max="2.5"
-            step="0.1"
-            value="1.6"
-          />
-        </div>
-      </div>
-      <div class="setting-item" style="margin-bottom: 12px">
-        <label
-          class="setting-label"
-          style="display: flex; justify-content: space-between"
-          ><span>字号缩放</span
-          ><span id="fs-val" class="slider-val">100%</span></label
-        >
-        <div class="slider-container">
-          <input
-            type="range"
-            class="style-range"
-            data-key="fontSize"
-            min="80"
-            max="150"
-            step="5"
-            value="100"
-          />
-        </div>
-      </div>
-      <div class="setting-item" style="margin-bottom: 0">
-        <label
-          class="setting-label"
-          style="display: flex; justify-content: space-between"
-          ><span>字重补偿</span
-          ><span id="fw-val" class="slider-val">0</span></label
-        >
-        <div class="slider-container">
-          <input
-            type="range"
-            class="style-range"
-            data-key="fontWeight"
-            min="-200"
-            max="300"
-            step="50"
-            value="0"
-          />
-        </div>
-      </div>
-    </div>
-
-
-    <div class="section-title"><i></i><span>配置方案</span></div>
-    <div class="card">
-      <div class="preset-list" id="preset-container">
-        <div class="empty-tip">暂无保存的方案</div>
-      </div>
-      <div class="save-box">
-        <div class="save-input-group">
-          <input
-            type="text"
-            id="new-preset-name"
-            class="preset-input"
-            placeholder="为当前风格命名..."
-            maxlength="12"
-            autocomplete="off"
-          />
-          <button id="btn-save-preset" class="btn-save" title="保存方案">
-            <span>保存</span>
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- 补充选择器折叠面板 -->
-    <section class="selector-panel selector-panel-open">
-      <div class="selector-header">
-        <div class="selector-title">
-          <span>补充 CSS 选择器</span>
-        </div>
-        <svg
-          class="selector-chevron"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="3"
-        >
-          <polyline points="6 9 12 15 18 9" />
-        </svg>
-      </div>
-      <div class="selector-body">
-        <div class="selector-picker">
-          <div class="selector-picker-meta">
-            <div class="selector-picker-title">页面拾取</div>
-            <p class="selector-picker-desc">
-              从当前网页点选一个元素，自动追加到你指定的规则项。
-            </p>
-          </div>
-          <div class="selector-picker-controls">
-            <div class="setting-item selector-picker-target">
-              <div class="input-group selector-picker-input-group">
-                <input
-                  id="selector-pick-target"
-                  class="selector-picker-select-input"
-                  type="text"
-                  readonly
-                  value="额外匹配 · 标准字体"
-                />
-                <div class="selector-picker-chevron">
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="3"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
-                </div>
-              </div>
-              <div id="selector-pick-dropdown" class="dropdown-list selector-pick-dropdown"></div>
-            </div>
-            <button type="button" id="selector-pick-button" class="selector-picker-button">
-              开始拾取
-            </button>
-          </div>
-        </div>
-        <div class="selector-group">
-          <label class="selector-label">标准字体</label>
-          <textarea
-            id="selectors-standard"
-            class="selector-textarea"
-            placeholder="请输入"
-          ></textarea>
-          <div class="selector-example">例如：`.article-content`</div>
-        </div>
-        <div class="selector-group">
-          <label class="selector-label">代码/等宽</label>
-          <textarea
-            id="selectors-mono"
-            class="selector-textarea"
-            placeholder="请输入"
-          ></textarea>
-          <div class="selector-example">例如：`.code-block` 或 `pre.highlight`</div>
-        </div>
-        <div class="selector-group">
-          <label class="selector-label">数学公式</label>
-          <textarea
-            id="selectors-math"
-            class="selector-textarea"
-            placeholder="请输入"
-          ></textarea>
-          <div class="selector-example">例如：`.katex` 或 `.MathJax`</div>
-        </div>
-        <div class="selector-group">
-          <label class="selector-label">排除替换 · 全局</label>
-          <textarea
-            id="selectors-exclude"
-            class="selector-textarea"
-            placeholder="请输入"
-          ></textarea>
-          <div class="selector-example">例如：`.ico_increase` 或 `[data-icon]`</div>
-        </div>
-        <p class="selector-hint">
-          支持逗号或换行分隔。排除项写元素本身即可，不需要手动写 <code>::before</code>。
-        </p>
-      </div>
-    </section>
-
-    <style>
+      /* ═══════════════════════════════════════════════════════
+         交互润色层
+         原为 body 内第二个 style 块，2026-10-12 合并至此。
+         合并时已消解与上方重复的选择器，行为不变。
+         ═══════════════════════════════════════════════════════ */
       /* ═══ 折叠面板 - 典雅风格 ═══ */
       .selector-panel {
         margin-top: 28px;
@@ -1363,13 +740,9 @@
         background: var(--box-bg);
       }
 
+      /* 曾是「拾取器 + 四个输入框」中的第一段，靠这条虚线分隔下方输入框；
+         输入框已移除（2026-10-13），它成了唯一子元素，分割线与下内边距一并去掉。 */
       .selector-picker {
-        padding: 0 0 14px;
-        border: none;
-        border-bottom: 1px dashed var(--border);
-        border-radius: 0;
-        background: transparent;
-        box-shadow: none;
         display: flex;
         flex-direction: column;
         gap: 10px;
@@ -1386,142 +759,71 @@
         line-height: 1.6;
         color: var(--text-muted);
       }
+      /* 四个规则项按钮排成 2×2：点哪个就拾取并追加到哪一项。
+         原先是「一个下拉框选目标 + 一个拾取按钮」，而下拉挂在面板最底部，
+         展开时会向下撑开、多要点两次；改成按钮后既无溢出问题，也不必再维护下拉定位。 */
       .selector-picker-controls {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 8px;
-        align-items: start;
       }
-      .selector-picker-target {
-        min-width: 0;
-        margin-bottom: 0;
-      }
-      .selector-picker-select-input,
-      .selector-picker-button {
+      .selector-pick-btn {
         height: 38px;
-        border-radius: 4px;
+        min-width: 0;
+        padding: 0 10px;
         border: 1px solid var(--border);
+        border-radius: 4px;
+        background: var(--bg);
+        color: var(--text);
         font-family: var(--font);
         font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
         transition: var(--transition);
       }
-      .selector-picker-input-group {
-        min-width: 0;
+      /* 兜底：万一哪个按钮漏了 data-target，hover 也还有反馈。 */
+      .selector-pick-btn:hover {
+        border-color: var(--primary-fg);
+        color: var(--primary-fg);
       }
-      .selector-picker-select-input {
-        width: 100%;
-        min-width: 0;
-        padding: 0 38px 0 12px;
-        background: var(--bg);
-        color: var(--text);
-        outline: none;
-        cursor: pointer;
+      /* 每个按钮 hover 时换成自己类型的那一色。
+         特异性 (0,2,1) 高于上面那条 (0,1,1)，所以不需要 !important。 */
+      .selector-pick-btn[data-target="standard"]:hover {
+        border-color: var(--pick-standard);
+        color: var(--pick-standard);
       }
-      .selector-picker-select-input:focus {
-        border-color: var(--primary);
-        box-shadow: var(--shadow-focus);
+      .selector-pick-btn[data-target="mono"]:hover {
+        border-color: var(--pick-mono);
+        color: var(--pick-mono);
       }
-      .selector-picker-target.open .selector-picker-chevron,
-      .selector-picker-target:focus-within .selector-picker-chevron {
-        color: var(--primary);
-        opacity: 1;
-        transform: rotate(180deg);
+      .selector-pick-btn[data-target="math"]:hover {
+        border-color: var(--pick-math);
+        color: var(--pick-math);
       }
-      .selector-picker-chevron {
-        position: absolute;
-        right: 12px;
-        top: 0;
-        bottom: 0;
-        display: flex;
-        align-items: center;
-        color: var(--text-muted);
-        opacity: 0.5;
-        pointer-events: none;
-        transition: 0.25s ease;
+      .selector-pick-btn[data-target="exclude"]:hover {
+        border-color: var(--pick-exclude);
+        color: var(--pick-exclude);
       }
-      .selector-picker-chevron svg {
-        width: 12px;
-        height: 12px;
-      }
-      .selector-pick-dropdown {
-        top: calc(100% + 6px);
-        left: 0;
-        right: 0;
-      }
-      .selector-picker-button {
-        padding: 0 14px;
-        background: var(--primary);
-        color: #fff;
-        cursor: pointer;
-        border-color: var(--primary);
-        letter-spacing: 0.3px;
-        font-weight: 700;
-      }
-      .selector-picker-button:hover {
-        opacity: 0.92;
+      .selector-pick-btn:active {
+        transform: scale(0.98);
       }
 
-      .selector-group {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
+      /* ═══ 不支持的页面：整块禁用页面拾取 ═══ */
+      .selector-picker-controls.is-disabled {
+        opacity: 0.45;
+        pointer-events: none;
       }
-      .selector-example {
-        font-size: 11px;
-        line-height: 1.5;
-        color: var(--text-muted);
+      .selector-pick-btn:disabled {
+        cursor: not-allowed;
       }
-      .selector-example code {
-        font-size: 11px;
-      }
-      .selector-hint {
-        margin: 0;
-        font-size: 11px;
-        line-height: 1.6;
-        color: var(--text-muted);
-      }
-      .selector-hint code {
-        font-size: 11px;
-        padding: 1px 4px;
-        border-radius: 4px;
-        background: var(--bg);
-        border: 1px solid var(--border);
-      }
-      .selector-label {
-        font-size: 11px;
-        font-weight: 700;
-        color: var(--text-light);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-      }
-      .selector-textarea {
-        width: 100%;
-        min-height: 64px;
-        padding: 12px 14px;
-        border: 1px solid var(--border);
-        border-radius: 4px;
-        background: var(--bg);
-        color: var(--text);
-        font-family: var(--font);
-        font-size: 13px;
-        line-height: 1.65;
-        resize: vertical;
-        outline: none;
-        transition: var(--transition);
-        box-sizing: border-box;
-      }
-      .selector-textarea:focus {
-        border-color: var(--primary);
-        box-shadow: var(--shadow-focus);
-      }
-      .selector-textarea::placeholder {
-        color: rgba(120, 120, 120, 0.9);
+      #selector-picker.is-unsupported .unsupported-hint {
+        display: block;
       }
 
       /* ═══ 方案卡片点击反馈 ═══ */
-      .preset-item {
-        transition: all 0.2s ease;
-      }
       .preset-item:active {
         transform: scale(0.97);
       }
@@ -1537,7 +839,9 @@
         content: "✓";
         position: absolute;
         top: 50%;
-        right: 12px;
+        /* 让开右侧的删除按钮（12px 内边距 + 18px 按钮 + 4px 间隔）。
+           它和 ✓ 都锚在右端，删除图标补上尺寸后两者会叠在一起。 */
+        right: 34px;
         transform: translateY(-50%);
         color: var(--accent);
         font-size: 14px;
@@ -1559,11 +863,6 @@
       }
 
       /* ═══ 按钮增强效果 ═══ */
-      .btn-save {
-        position: relative;
-        overflow: hidden;
-        font-family: var(--font);
-      }
       .btn-save::after {
         content: "";
         position: absolute;
@@ -1591,31 +890,12 @@
         width: 22px;
       }
 
-      /* ═══ 列表项目切换 ═══ */
-      #configure-shortcuts:active {
-        transform: scale(0.95);
-      }
-
       /* ═══ 卡片悬停效果 ═══ */
-      .card {
-        transition:
-          box-shadow 0.3s ease,
-          transform 0.2s ease;
-      }
       .card:hover {
         box-shadow: var(--shadow-hover);
       }
 
-      /* ═══ 滑块交互增强 ═══ */
-      input[type="range"]:active::-webkit-slider-thumb {
-        transform: scale(1.15);
-        background: var(--primary);
-      }
-
       /* ═══ 下拉列表动画 ═══ */
-      .dropdown-list {
-        animation: dropdownFade 0.2s ease;
-      }
       @keyframes dropdownFade {
         from {
           opacity: 0;
@@ -1627,8 +907,344 @@
         }
       }
     </style>
+  </head>
+  <body>
+    <div class="header">
+      <div class="logo">
+        <img src="public/PureRead-icon-128.png" />
+      </div>
+      <div class="header-actions">
+        <div id="popup-ver-badge" style="font-size: 10px; font-weight: 600; font-family: var(--font); color: var(--text-muted); padding: 0 6px; border-radius: 4px; background: transparent; border: 1px solid var(--border); transition: all 0.2s; display: flex; align-items: center; justify-content: center; height: 18px; margin-right: 4px;"></div>
+        <div
+          class="settings-link"
+          id="open-settings"
+          data-i18n-title="popup.advanced"
+          title="高级设置"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle cx="12" cy="12" r="3"></circle>
+            <path
+              d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"
+            ></path>
+          </svg>
+        </div>
+        <a
+          href="https://github.com/Dnzzk2/PureRead"
+          target="_blank"
+          class="gh-link"
+        >
+          <svg viewBox="0 0 24 24">
+            <path
+              d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"
+            />
+          </svg>
+        </a>
+      </div>
+    </div>
+
+    <div class="card" id="site-card">
+      <div class="row">
+        <span data-i18n="popup.masterSwitch">总开关</span
+        ><label class="switch"
+          ><input type="checkbox" id="global-switch" checked /><span
+            class="slider"
+          ></span
+        ></label>
+      </div>
+      <div
+        style="
+          height: 1px;
+          background: var(--border);
+          margin: 10px 0;
+          opacity: 0.5;
+        "
+      ></div>
+      <div class="row">
+        <span
+          ><code
+            id="domain-display"
+            style="
+              background: var(--primary-soft);
+              color: var(--primary-fg);
+              padding: 2px 6px;
+              border-radius: 4px;
+              font-size: 11px;
+            "
+            >...</code
+          ></span
+        ><label class="switch"
+          ><input type="checkbox" id="site-switch" checked /><span
+            class="slider"
+          ></span
+        ></label>
+      </div>
+      <div class="segmented-control">
+        <input
+          type="radio"
+          name="mode"
+          id="mode-global"
+          value="global"
+          checked
+        /><label for="mode-global" data-i18n="popup.modeGlobal">全局字体</label
+        ><input
+          type="radio"
+          name="mode"
+          id="mode-custom"
+          value="custom"
+        /><label for="mode-custom" data-i18n="popup.modeSite">本站字体</label>
+        <div class="selection-bar"></div>
+      </div>
+      <p class="unsupported-hint" data-i18n="popup.unsupportedHint">
+        当前页面不支持站点级设置，字体修改仍会全局生效。
+      </p>
+    </div>
+
+    <div class="section-title">
+      <i></i><span data-i18n="popup.fontsSection">字体选择</span>
+    </div>
+    <div class="card">
+      <div id="loading-tip" data-i18n="popup.loadingFonts">
+        正在载入系统字体...
+      </div>
+      <div class="font-limit-hint" id="font-limit-hint">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 11v5" />
+          <path d="M12 8h.01" />
+        </svg>
+        <span id="font-limit-text"></span>
+      </div>
+      <div class="setting-item">
+        <label class="setting-label" data-i18n="popup.label.standard">标准字体</label>
+        <div class="input-group">
+          <div class="input-icon">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M4 7V4h16v3M9 20h6M12 4v16" />
+            </svg>
+          </div>
+          <input
+            class="font-input"
+            data-key="standard"
+            data-i18n-placeholder="popup.placeholder.standard"
+            placeholder="留空则不替换正文"
+            autocomplete="off"
+          />
+          <div class="chevron-icon">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="3"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </div>
+          <button class="reset-btn" data-target="standard">
+            <svg viewBox="0 0 20 20">
+              <path
+                d="M13.937 4.211a1 1 0 0 1-1.126 1.653A5 5 0 1 0 15 10a1 1 0 1 1 2 0a7 7 0 1 1-3.063-5.789 M13.539 12.506a1 1 0 1 1-1.078-1.685l3.482-2.227a1 1 0 0 1 1.077 1.685z M18.903 12.41a1 1 0 0 1-1.826.815l-1.508-3.38a1 1 0 1 1 1.826-.815z"
+                fill="currentColor"
+              />
+            </svg>
+          </button>
+        </div>
+        <div class="dropdown-list"></div>
+      </div>
+      <div class="setting-item">
+        <label class="setting-label" data-i18n="popup.label.mono">代码/等宽</label>
+        <div class="input-group">
+          <div class="input-icon">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polyline points="16 18 22 12 16 6" />
+              <polyline points="8 6 2 12 8 18" />
+            </svg>
+          </div>
+          <input
+            class="font-input"
+            data-key="mono"
+            data-i18n-placeholder="popup.placeholder.mono"
+            placeholder="留空则不替换代码"
+            autocomplete="off"
+          />
+          <div class="chevron-icon">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="3"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </div>
+          <button class="reset-btn" data-target="mono">
+            <svg viewBox="0 0 20 20">
+              <path
+                d="M13.937 4.211a1 1 0 0 1-1.126 1.653A5 5 0 1 0 15 10a1 1 0 1 1 2 0a7 7 0 1 1-3.063-5.789 M13.539 12.506a1 1 0 1 1-1.078-1.685l3.482-2.227a1 1 0 0 1 1.077 1.685z M18.903 12.41a1 1 0 0 1-1.826.815l-1.508-3.38a1 1 0 1 1 1.826-.815z"
+                fill="currentColor"
+              />
+            </svg>
+          </button>
+        </div>
+        <div class="dropdown-list"></div>
+      </div>
+      <div class="setting-item" style="margin-bottom: 0">
+        <label class="setting-label" data-i18n="popup.label.math">数学公式</label>
+        <div class="input-group">
+          <div class="input-icon">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M2.5 12.5H6l3.5 7 5.5-15h6.5" />
+            </svg>
+          </div>
+          <input
+            class="font-input"
+            data-key="math"
+            data-i18n-placeholder="popup.placeholder.math"
+            placeholder="留空则不替换公式"
+            autocomplete="off"
+          />
+          <div class="chevron-icon">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="3"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </div>
+          <button class="reset-btn" data-target="math">
+            <svg viewBox="0 0 20 20">
+              <path
+                d="M13.937 4.211a1 1 0 0 1-1.126 1.653A5 5 0 1 0 15 10a1 1 0 1 1 2 0a7 7 0 1 1-3.063-5.789 M13.539 12.506a1 1 0 1 1-1.078-1.685l3.482-2.227a1 1 0 0 1 1.077 1.685z M18.903 12.41a1 1 0 0 1-1.826.815l-1.508-3.38a1 1 0 1 1 1.826-.815z"
+                fill="currentColor"
+              />
+            </svg>
+          </button>
+        </div>
+        <div class="dropdown-list"></div>
+      </div>
+    </div>
+
+    <div class="section-title">
+      <i></i><span data-i18n="popup.schemesSection">配置方案</span>
+    </div>
+    <div class="card">
+      <div class="preset-list" id="preset-container">
+        <div class="empty-tip" data-i18n="popup.schemes.empty">暂无保存的方案</div>
+      </div>
+      <div class="save-box">
+        <div class="save-input-group">
+          <input
+            type="text"
+            id="new-preset-name"
+            class="preset-input"
+            data-i18n-placeholder="popup.schemes.namePlaceholder"
+            placeholder="为当前方案命名..."
+            maxlength="12"
+            autocomplete="off"
+          />
+          <button
+            id="btn-save-preset"
+            class="btn-save"
+            data-i18n-title="popup.schemes.saveTitle"
+            title="保存方案"
+          >
+            <span data-i18n="popup.schemes.save">保存</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 补充选择器折叠面板 -->
+    <section class="selector-panel selector-panel-open">
+      <div class="selector-header">
+        <div class="selector-title">
+          <span data-i18n="popup.picker.title">额外匹配与排除</span>
+        </div>
+        <svg
+          class="selector-chevron"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="3"
+        >
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </div>
+      <div class="selector-body">
+        <div class="selector-picker" id="selector-picker">
+          <div class="selector-picker-meta">
+            <div class="selector-picker-title" data-i18n="popup.picker.heading">
+              页面拾取
+            </div>
+            <p class="selector-picker-desc" data-i18n="popup.picker.desc">
+              从当前网页点选一个元素，自动追加到下面你点击的规则项。
+            </p>
+            <p class="unsupported-hint" data-i18n="popup.picker.unsupported">
+              当前页面为浏览器内置页，无法注入脚本，暂不能拾取元素。
+            </p>
+          </div>
+          <div class="selector-picker-controls">
+            <button type="button" class="selector-pick-btn" data-target="standard">
+              <span data-i18n="popup.picker.target.standard">标准字体</span>
+            </button>
+            <button type="button" class="selector-pick-btn" data-target="mono">
+              <span data-i18n="popup.picker.target.mono">代码 / 等宽</span>
+            </button>
+            <button type="button" class="selector-pick-btn" data-target="math">
+              <span data-i18n="popup.picker.target.math">数学公式</span>
+            </button>
+            <button type="button" class="selector-pick-btn" data-target="exclude">
+              <span data-i18n="popup.picker.target.exclude">排除替换</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
 
     <script src="shared.js"></script>
+    <script src="i18n.js"></script>
     <script src="popup.js"></script>
   </body>
 </html>

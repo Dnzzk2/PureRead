@@ -2,22 +2,25 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <title>PureRead 控制中心</title>
+    <title data-i18n="options.title">PureRead - 控制中心</title>
     <style>
-       @import url("https://fontsapi.zeoseven.com/439/main/result.css");
+       @import url("https://fontsapi.zeoseven.com/144/main/result.css");
 
       /* ═══════════════════════════════════════════════════════════
          PureRead 控制中心 — 现代简约设计
          ═══════════════════════════════════════════════════════════ */
 
       :root {
-        --primary: #1a1a2e;
-        --primary-light: #16213e;
-        --accent: #0f3460;
-        --accent-glow: #e94560;
-        --accent-glow-soft: rgba(233, 69, 96, 0.08);
+        /* 主色与 popup 共用同一套值：popup 的总开关选中态、主按钮都取它。
+           主按钮禁用 background: var(--text) —— 暗色下 --text 会翻成近白，
+           按钮就成了白底，故统一到这里。
+           和 popup 一样拆成「填充底」和「前景」两个角色：--primary 上面压白字，
+           --primary-fg 压在卡片/页面底上（下拉悬停文字、展开的箭头、焦点描边）。
+           明色下两者同值，暗色下要求相反，见下方 dark :root。 */
+        --primary: #5c6167;
+        --primary-fg: #5c6167;
 
-        --bg: #fafafa;
+        --bg: #f8fafc;
         --card-bg: #ffffff;
         --surface: #f4f4f5;
 
@@ -28,25 +31,95 @@
         --text-light: #52525b;
         --text-muted: #a1a1aa;
 
-        --radius: 12px;
-        --radius-sm: 8px;
-        --transition: 0.2s ease;
+        /* 淡化的主色底，配 --primary 当前景用。取值与 popup 的 --primary-soft
+           相同，供界面语言下拉的选项悬停态使用。 */
+        --primary-soft: #ecf0f3;
+
+        /* ═══ 语义色板 ═══
+           -bg 是淡底（图标底、徽标底），-fg 是同一色系的前景色。
+           暗色模式只重定义下面这一组变量（见 dark :root），
+           组件一律写 var()，就不再需要逐条补 @media 覆盖了。 */
+        --blue-bg: #dbeafe;
+        --blue-fg: #2563eb;
+        --green-bg: #d1fae5;
+        --green-fg: #059669;
+        --amber-bg: #fef3c7;
+        /* 原为 #d97706，压在自己的淡底 #fef3c7 上只有 2.86:1，低于非文字图形 3:1 门槛；
+           #b45309 为 4.51:1。该 token 只有「存储记录」图标一处引用，改动不外溢。 */
+        --amber-fg: #b45309;
+        /* 板块图标色。六块各一色、彼此不重复，且每色尽量对得上板块含义：
+           站点管理=蓝（网页）、额外匹配与排除=紫（代码）、方案库=绿、存储记录=琥珀、
+           配置备份=玫红、关于=灰（中性）。
+           玫红当初是给「重置与备份」当警示色用的；那一块改成纯备份、不再有破坏性操作后，
+           它只剩「第六个空位」这一个理由，与 --danger-* 也不再是同类含义（见 UX-REVIEW P3-11）。 */
+        --rose-bg: #ffe4e6;
+        --rose-fg: #e11d48;
+        --violet-bg: #ede9fe;
+        --violet-fg: #7c3aed;
+        --slate-bg: #f1f5f9;
+        --slate-fg: #475569;
+
+        --danger-bg: #fef2f2;
+        --danger-fg: #dc2626;
+        --danger-border: #fecaca;
+
+        /* ═══ 「有新版本」用色 ═══
+           徽标取淡底/前景一对，按钮取实底（--update-on 是压在实底上的字色）。
+           值就是语义色板里的琥珀：暖调，和品牌金 #c9a227 同族，在一张几乎全灰的
+           关于卡里是唯一一点暖色，读作「提示」而不是「出错」。
+           这三处原来借的是 --danger-*，一颗红药丸挂在灰卡片上像报错，
+           而且红底在暗色下对比度还更低。 */
+        --update-bg: #fef3c7;
+        --update-fg: #b45309;
+        --update-on: #ffffff;
+
+        /* 背景洗色与焦点。
+           --wash-* 只被 body::before 那一层径向渐变当作色标用，
+           原名叫 --orb-*-bg，但光斑（.glow-orb）已删除，留着旧名字会误导。
+           暗色下重定义在下面 dark :root 里，与原来那套光斑色是同一组值。 */
+        --wash-1: rgba(99, 102, 241, 0.06);
+        --wash-2: rgba(59, 130, 246, 0.05);
+        /* 虚线网格底纹的线色，只被 body::after 用。取值即设计稿给的 #e7e5e4
+           （暖调中性色）；暗色改低透明度白线，见下方 dark :root。 */
+        --grid-line: #e7e5e4;
+        --focus-ring: rgba(233, 69, 96, 0.08);
+        /* 卡片顶部 1px 内高光。明色卡片本身就是 #fff，高光看不见也用不上，
+           真正的用处是暗色下把卡片上沿从背景里「拎」起来。 */
+        --card-sheen: rgba(255, 255, 255, 0);
+
+        /* 圆角与动效与 popup 对齐（popup 主圆角 6px / 控件 4px） */
+        --radius: 6px;
+        --radius-sm: 4px;
+        --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         --shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 2px 8px rgba(0, 0, 0, 0.03);
         --shadow-md:
           0 4px 16px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04);
         --shadow-lg:
           0 8px 32px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04);
 
-        --font: "Huiwen-HKHei", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        /* ═══ 浮动下拉面板 ═══
+           与 popup 取同一组值（说明见 popup.html 的 :root）：语言下拉与字体下拉是
+           和 popup 字体下拉同一个控件。
+           不跟 --card-bg / --shadow-md 走 —— 那是卡片自己的表面与投影，跟着本页底色；
+           下拉浮在卡片之上，是另一层。 */
+        --dropdown-bg: #ffffff;
+        --dropdown-border: #e8e4df;
+        --dropdown-shadow:
+          0 2px 8px rgba(0, 0, 0, 0.06), 0 8px 24px rgba(0, 0, 0, 0.04);
+
+        --font: "LXGW 975 HazyGo SC 500W", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       }
 
       @media (prefers-color-scheme: dark) {
         :root {
-          --primary: #c8cdd3;
-          --primary-light: #a1a8b0;
-          --accent: #6b8db5;
-          --accent-glow: #e94560;
-          --accent-glow-soft: rgba(233, 69, 96, 0.12);
+          /* 填充底：白字压在上面对比度 4.59:1，过 AA。
+             原值 #7c9ab5 只有 2.94:1 —— 暗色下按钮/开关的白字发虚，故压深一档。 */
+          --primary: #61788d;
+          /* 前景：和 popup 取同一个值。压在悬停底（--primary-soft 叠在卡片上
+             ≈ #232a30）上 4.98:1，过 AA；跟着 --primary 一起压深只剩 3.15:1。
+             下拉悬停文字、展开的箭头、焦点描边都取它 —— 这三处都在卡片底上，
+             不是「压在白字下面的填充底」。 */
+          --primary-fg: #7c9ab5;
 
           --bg: #111113;
           --card-bg: #1a1a1e;
@@ -59,9 +132,52 @@
           --text-light: #9898a0;
           --text-muted: #5c5c66;
 
+          --primary-soft: rgba(124, 154, 181, 0.12);
+
+          --blue-bg: rgba(37, 99, 235, 0.15);
+          --blue-fg: #60a5fa;
+          --green-bg: rgba(5, 150, 105, 0.15);
+          --green-fg: #34d399;
+          --amber-bg: rgba(217, 119, 6, 0.15);
+          --amber-fg: #fbbf24;
+          --rose-bg: rgba(225, 29, 72, 0.15);
+          --rose-fg: #fb7185;
+          --violet-bg: rgba(124, 58, 237, 0.15);
+          --violet-fg: #a78bfa;
+          --slate-bg: rgba(71, 85, 105, 0.15);
+          --slate-fg: #94a3b8;
+
+          --danger-bg: rgba(220, 38, 38, 0.12);
+          --danger-fg: #f87171;
+          --danger-border: rgba(220, 38, 38, 0.2);
+
+          /* 暗色下 --update-fg 翻成亮琥珀，它同时是按钮的实底，
+             所以压在它上面的字色也要跟着翻成深色，不能再是白字（白字只剩 1.7:1）。 */
+          --update-bg: rgba(217, 119, 6, 0.15);
+          --update-fg: #fbbf24;
+          --update-on: #1c1917;
+
+          --wash-1: rgba(99, 102, 241, 0.08);
+          --wash-2: rgba(59, 130, 246, 0.06);
+          /* 暗色下浅色线会亮得刺眼，换成低透明度白线。
+             0.09 是照着明色的对比度配的：明色那条 #e7e5e4 压在 #f8fafc 上
+             约差 21 级亮度，这里 0.09 的白压在 #111113 上也约差 21 级。
+             原来的 0.05 是按「实线网格」定的 —— 现在网格被遮罩切成 3px 短划、
+             而且隔一条才留一条（见 body::after），落墨只剩两成，0.05 在暗色下
+             基本就看不见了。 */
+          --grid-line: rgba(255, 255, 255, 0.09);
+          --focus-ring: rgba(233, 69, 96, 0.12);
+          /* 暗色卡片 #1a1a1e 压在 #111113 上，只有 1.07:1，边界全靠描边，
+             加一道顶部内高光让上沿先亮起来，卡片才有厚度。 */
+          --card-sheen: rgba(255, 255, 255, 0.055);
+
           --shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
           --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
           --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+          /* 浮动下拉面板，见亮色 :root 的说明。 */
+          --dropdown-bg: #242426;
+          --dropdown-border: #3a3a3c;
+          --dropdown-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
         }
       }
 
@@ -102,68 +218,245 @@
         overflow-x: hidden;
       }
 
-      /* 图标水印 */
-      body::before {
-        content: "";
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        width: 780px;
-        height: 780px;
-        background: url("icon.png") no-repeat center / contain;
-        opacity: 0.07;
-        pointer-events: none;
-        z-index: 0;
+      /* 表单控件与 <code>/<kbd> 默认不继承字体，这里统一强制继承 body 字体 */
+      code,
+      kbd,
+      pre,
+      samp,
+      button,
+      input,
+      textarea,
+      select {
+        font-family: inherit;
       }
-      @media (prefers-color-scheme: dark) {
-        body::before {
-          opacity: 0.04;
+
+      /* 「界面语言」的自绘下拉，整个照 popup 那张（.font-input/.chevron-icon
+         与 .dropdown-list/.dropdown-item）搬过来。原本用的是原生 <select>，
+         但展开后的 option 菜单样式根本改不动，跟 popup 对不齐，所以换成自绘。
+         面板取 --dropdown-*、强调色取 --primary-fg，两边同名同值 —— 早先这里要
+         靠一张「本文件用哪个 token 顶替 popup 哪个」的对照表，那张表已经拆掉。 */
+      .lang-dropdown {
+        position: relative;
+      }
+
+      .lang-trigger {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        width: 100%;
+        padding: 12px 14px;
+        font-family: var(--font);
+        font-size: 13px;
+        color: var(--text);
+        text-align: left;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        outline: none;
+        transition:
+          border-color 0.2s,
+          box-shadow 0.2s;
+      }
+
+      .lang-trigger:hover {
+        border-color: var(--border-strong);
+      }
+
+      .lang-trigger:focus-visible {
+        border-color: var(--primary-fg);
+        box-shadow: 0 0 0 3px var(--focus-ring);
+      }
+
+      .lang-trigger .chevron-icon {
+        display: flex;
+        align-items: center;
+        flex-shrink: 0;
+        color: var(--text-muted);
+        opacity: 0.5;
+        transition: 0.25s ease;
+      }
+
+      .lang-trigger[aria-expanded="true"] .chevron-icon {
+        transform: rotate(180deg);
+        color: var(--primary-fg);
+        opacity: 1;
+      }
+
+      .lang-trigger .chevron-icon svg {
+        width: 12px;
+        height: 12px;
+      }
+
+      /* 展开的列表被 JS 挪到 <body> 上，用 position: fixed 定位，
+         坐标由 placeLocaleList() 按触发器算。留在卡片里躲不开两道裁剪：
+           ① .section 的 overflow: hidden（收圆角用的）；
+           ② 入场动画带 fill: both，终帧 transform 是 translateY(0) 而非 none，
+              于是卡片既是层叠上下文、又成了「固定定位的包含块」——这时连
+              position: fixed 都会被它裁掉，z-index 抬多高都救不回来。
+         挂到 body 之后这两个前提都不成立，它直接浮在 .container（z-index: 1）之上。
+         z-index 取 900：高过所有卡片，又低于模态遮罩（1000）。 */
+      .lang-dropdown-list {
+        position: fixed;
+        top: 0;
+        left: 0;
+        padding: 6px;
+        background: var(--dropdown-bg);
+        border: 1px solid var(--dropdown-border);
+        border-radius: 6px;
+        box-shadow: var(--dropdown-shadow);
+        z-index: 900;
+        display: none;
+        animation: dropdownFade 0.2s ease;
+        /* 与 .font-dropdown 取同一组上限。目前只有三条语言，够不着 200px，
+           但三个下拉框的滚动行为应当一致 —— 加语言时不必再想起来补。 */
+        max-height: 200px;
+        overflow-y: auto;
+      }
+
+      /* ── 下拉列表项：语言下拉与字体下拉共用 ──
+         行高与内边距逐条对齐 popup 的 .dropdown-item，展开后的盒子才一样高。
+         height 还必须等于 shared.js 的 DROPDOWN_ITEM_HEIGHT，否则虚拟列表的
+         滚动换算会按 32px 走而实际行高不是 32px，越往下偏得越多。 */
+      .dropdown-item {
+        height: 32px;
+        box-sizing: border-box;
+        line-height: 16px;
+        padding: 8px 12px;
+        font-size: 11.5px;
+        border-radius: var(--radius-sm);
+        color: var(--text);
+        cursor: pointer;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        transition: 0.15s ease;
+      }
+
+      .dropdown-item:hover,
+      .dropdown-item:focus-visible {
+        background: var(--primary-soft);
+        color: var(--primary-fg);
+        outline: none;
+      }
+
+      .dropdown-item.active {
+        background: var(--primary);
+        color: #fff;
+      }
+
+      /* 虚拟列表的上下占位块：只撑高度，不参与交互 */
+      .dropdown-spacer {
+        pointer-events: none;
+      }
+
+      @keyframes dropdownFade {
+        from {
+          opacity: 0;
+          transform: translateY(-8px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
         }
       }
 
-      /* 噪点纹理叠加 */
+      /* ═══ 背景装饰：一层 CSS 径向渐变 ═══
+         原先是三层叠着，全部删除：
+           1. PureRead - Logo.png 水印 —— 拉到 780px 居中，可内容区宽 1104px（1200 − 48×2），
+              卡片又是不透明的，整幅水印被压在底下，只在两栏之间 32px 的缝和
+              页面顶底露出来。为一道缝解码一张大 PNG 不划算。
+           2. feTurbulence 噪点 —— 整屏做一次噪点光栅化，实际强度只有约 1.2%，
+              肉眼几乎不可见。
+           3. 两个 .glow-orb —— 500/400px 的元素各做一次 blur(100px)，
+              大面积高斯模糊，另加两个 DOM 节点。
+         换成下面这层渐变后：零图片解码、零滤镜、零额外 DOM 节点，
+         颜色仍走 --wash-* 变量，暗色模式自动跟随。
+         层次的大头不在这里而在卡片上 —— 见 .section。 */
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 0;
+        background-image:
+          radial-gradient(
+            880px 620px at 88% -6%,
+            var(--wash-1),
+            transparent 68%
+          ),
+          radial-gradient(
+            720px 540px at -6% 102%,
+            var(--wash-2),
+            transparent 68%
+          );
+        background-repeat: no-repeat;
+      }
+
+      /* 虚线网格底纹。和上面那层洗色同一套路：fixed + z-index: 0，
+         整体沉在 .container（z-index: 1）之下，只从卡片缝隙里露出来。
+         线色走 --grid-line，所以明暗两套配色都自动跟随。
+
+         遮罩是这层的关键，共三层，取交集：
+           1. 沿 x 的重复条纹：3px 实、5px 空；
+           2. 沿 y 的重复条纹：同上；
+           3. 椭圆径向渐变，圆心压在页首中点（50% 0%），50% 以内实色、
+              90% 处透明 —— 顶浓底淡。
+         两条条纹一交，网格线就被切成 3px 的短划；再叠上第三条，越往下越淡。
+         于是「虚线网格」和「自顶部淡出」由同一个遮罩出，不需要额外的渐变层。
+
+         注意实际看到的是 40px 间距，不是 20px：格距 20 与短划周期 8 相除余 4，
+         所以横竖每隔一条线整条都落在「空」的那 5px 里，被整个遮掉。
+         这是这套遮罩本身的性质，不是写错了 —— 想要条条都在，得让两个周期整除。
+
+         -webkit-mask-composite 的 source-in 在旧内核里是「逐层与下层取交」，
+         与标准属性的 intersect 同义。两行都留着：新版 Chrome 走 mask-composite，
+         旧内核走前缀那份。 */
       body::after {
         content: "";
         position: fixed;
         inset: 0;
-        opacity: 0.3;
         pointer-events: none;
         z-index: 0;
-        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
-        background-repeat: repeat;
-        background-size: 256px 256px;
-      }
-
-      /* 渐变光斑 */
-      .glow-orb {
-        position: fixed;
-        border-radius: 50%;
-        filter: blur(100px);
-        pointer-events: none;
-        z-index: 0;
-      }
-      .glow-orb.orb-1 {
-        width: 500px;
-        height: 500px;
-        background: rgba(99, 102, 241, 0.06);
-        top: -120px;
-        right: -100px;
-      }
-      .glow-orb.orb-2 {
-        width: 400px;
-        height: 400px;
-        background: rgba(59, 130, 246, 0.05);
-        bottom: -80px;
-        left: -80px;
-      }
-      @media (prefers-color-scheme: dark) {
-        .glow-orb.orb-1 {
-          background: rgba(99, 102, 241, 0.08);
-        }
-        .glow-orb.orb-2 {
-          background: rgba(59, 130, 246, 0.06);
-        }
+        background-image:
+          linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+          linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
+        background-size: 20px 20px;
+        -webkit-mask-image:
+          repeating-linear-gradient(
+            to right,
+            #000 0,
+            #000 3px,
+            transparent 3px,
+            transparent 8px
+          ),
+          repeating-linear-gradient(
+            to bottom,
+            #000 0,
+            #000 3px,
+            transparent 3px,
+            transparent 8px
+          ),
+          radial-gradient(ellipse 100% 80% at 50% 0%, #000 50%, transparent 90%);
+        -webkit-mask-composite: source-in;
+        mask-image:
+          repeating-linear-gradient(
+            to right,
+            #000 0,
+            #000 3px,
+            transparent 3px,
+            transparent 8px
+          ),
+          repeating-linear-gradient(
+            to bottom,
+            #000 0,
+            #000 3px,
+            transparent 3px,
+            transparent 8px
+          ),
+          radial-gradient(ellipse 100% 80% at 50% 0%, #000 50%, transparent 90%);
+        mask-composite: intersect;
       }
 
       /* ═══ 主容器 ═══ */
@@ -195,13 +488,24 @@
         }
       }
 
-      /* ═══ 卡片 ═══ */
+      /* ═══ 卡片 ═══
+         层次全在卡片上做。背景装饰只从卡片的缝隙里露出来（见 body::before 那段），
+         指望不上；卡片本身才是屏幕上真正被看见的「面」，所以把层次挪到这里：
+           ① 静置 —— 描边 + 极淡投影 + 顶部 1px 内高光。高光在明色下取全透明
+              （卡片本就是 #fff，白压白看不见也没必要），只在暗色下启用，
+              用来把卡片上沿从 #111113 的背景里拎起来。
+           ② hover —— 投影升一档（--shadow → --shadow-md）并整卡上移 2px。
+           ③ 嵌入 —— 卡片内的次级面（.notice-card / .storage-card / .scheme-item
+              等）一律用 --surface 下沉一档，与外层卡片形成两层明度差，
+              否则一屏下来就是一块块死平的白。 */
       .section {
         background: var(--card-bg);
         border: 1px solid var(--border);
         border-radius: var(--radius);
         padding: 28px;
-        box-shadow: var(--shadow);
+        box-shadow:
+          inset 0 1px 0 var(--card-sheen),
+          var(--shadow);
         margin-bottom: 24px;
         transition:
           box-shadow 0.3s ease,
@@ -223,17 +527,27 @@
       .section:nth-child(4) {
         animation-delay: 0.44s;
       }
+      .section:nth-child(5) {
+        animation-delay: 0.56s;
+      }
 
       .section:hover {
-        box-shadow: var(--shadow-md);
+        box-shadow:
+          inset 0 1px 0 var(--card-sheen),
+          var(--shadow-md);
         transform: translateY(-2px);
       }
 
+      /* 标题与内容之间加一道发丝线。明色下卡片顶部内高光是全透明的，
+         而本文件明色卡片的阴影本来就极淡（--shadow 最重一层只有 4% 黑），
+         六个板块于是长得一模一样。这道线是「不单调」最直接的来源。 */
       .section-header {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        margin-bottom: 24px;
+        padding-bottom: 14px;
+        margin-bottom: 18px;
+        border-bottom: 1px solid var(--border);
       }
 
       h2 {
@@ -260,55 +574,34 @@
         height: 16px;
       }
       h2 .icon-wrap.blue {
-        background: #dbeafe;
-        color: #2563eb;
+        background: var(--blue-bg);
+        color: var(--blue-fg);
       }
       h2 .icon-wrap.green {
-        background: #d1fae5;
-        color: #059669;
+        background: var(--green-bg);
+        color: var(--green-fg);
       }
       h2 .icon-wrap.amber {
-        background: #fef3c7;
-        color: #d97706;
+        background: var(--amber-bg);
+        color: var(--amber-fg);
       }
       h2 .icon-wrap.rose {
-        background: #ffe4e6;
-        color: #e11d48;
+        background: var(--rose-bg);
+        color: var(--rose-fg);
       }
       h2 .icon-wrap.violet {
-        background: #ede9fe;
-        color: #7c3aed;
+        background: var(--violet-bg);
+        color: var(--violet-fg);
       }
       h2 .icon-wrap.slate {
-        background: #f1f5f9;
-        color: #475569;
+        background: var(--slate-bg);
+        color: var(--slate-fg);
       }
-
-      @media (prefers-color-scheme: dark) {
-        h2 .icon-wrap.blue {
-          background: rgba(37, 99, 235, 0.15);
-          color: #60a5fa;
-        }
-        h2 .icon-wrap.green {
-          background: rgba(5, 150, 105, 0.15);
-          color: #34d399;
-        }
-        h2 .icon-wrap.amber {
-          background: rgba(217, 119, 6, 0.15);
-          color: #fbbf24;
-        }
-        h2 .icon-wrap.rose {
-          background: rgba(225, 29, 72, 0.15);
-          color: #fb7185;
-        }
-        h2 .icon-wrap.violet {
-          background: rgba(124, 58, 237, 0.15);
-          color: #a78bfa;
-        }
-        h2 .icon-wrap.slate {
-          background: rgba(71, 85, 105, 0.15);
-          color: #94a3b8;
-        }
+      /* 界面语言卡专用。六个内容板块已各占一色，这里刻意取中性灰，
+         读起来比那六张轻一档——它是全局偏好，不是又一块内容。 */
+      h2 .icon-wrap.neutral {
+        background: var(--surface);
+        color: var(--text-light);
       }
 
       h2 i {
@@ -328,8 +621,8 @@
         padding: 16px 20px;
         background: var(--card-bg);
         border: 1px solid var(--border);
-        border-radius: 8px;
-        transition: all 0.25s cubic-bezier(0.2, 0, 0, 1);
+        border-radius: var(--radius-sm);
+        transition: all var(--transition);
       }
       .scheme-item:hover {
         border-color: var(--border-strong);
@@ -344,16 +637,33 @@
       .scheme-title {
         font-weight: 600;
         font-size: 14px;
-        margin-bottom: 3px;
+        margin-bottom: 8px;
         color: var(--text);
       }
-      .scheme-meta {
+      /* 标签列取内容宽（中文两字 / 英文一个词），值列吃掉剩下的。
+         用 minmax(0,1fr) 而不是 1fr，否则超长字体名会把栅格撑宽而不是换行。 */
+      .scheme-fonts {
+        display: grid;
+        grid-template-columns: max-content minmax(0, 1fr);
+        gap: 3px 10px;
+        align-items: baseline;
+      }
+      .scheme-fonts-label {
         font-size: 12px;
+        line-height: 1.4;
         color: var(--text-muted);
         font-family: var(--font);
         white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+      }
+      .scheme-fonts-value {
+        font-size: 13px;
+        /* 各字体自带的行高差别很大，统一写死，行距才不会忽宽忽窄 */
+        line-height: 1.4;
+        color: var(--text);
+        min-width: 0;
+        /* 以前这里是 nowrap + ellipsis，长字体名被直接截断。
+           改成换行：卡片高一点，名字是完整的。 */
+        overflow-wrap: anywhere;
       }
       .scheme-actions {
         display: flex;
@@ -386,16 +696,9 @@
         border-color: var(--border-strong);
       }
       .action-btn.del:hover {
-        background: #fef2f2;
-        color: #dc2626;
-        border-color: #fecaca;
-      }
-      @media (prefers-color-scheme: dark) {
-        .action-btn.del:hover {
-          background: rgba(220, 38, 38, 0.1);
-          color: #f87171;
-          border-color: rgba(220, 38, 38, 0.2);
-        }
+        background: var(--danger-bg);
+        color: var(--danger-fg);
+        border-color: var(--danger-border);
       }
 
       /* ═══ 站点管理 ═══ */
@@ -468,22 +771,12 @@
         letter-spacing: 0.5px;
       }
       .badge-off {
-        background: #fef2f2;
-        color: #dc2626;
+        background: var(--danger-bg);
+        color: var(--danger-fg);
       }
       .badge-custom {
-        background: #ecfdf5;
-        color: #059669;
-      }
-      @media (prefers-color-scheme: dark) {
-        .badge-off {
-          background: rgba(220, 38, 38, 0.12);
-          color: #f87171;
-        }
-        .badge-custom {
-          background: rgba(5, 150, 105, 0.12);
-          color: #34d399;
-        }
+        background: var(--green-bg);
+        color: var(--green-fg);
       }
 
       /* ═══ 存储容量 ═══ */
@@ -520,28 +813,6 @@
         font-family: var(--font);
       }
 
-      /* ═══ 涟漪效果 ═══ */
-      @keyframes ripple {
-        to {
-          transform: scale(4);
-          opacity: 0;
-        }
-      }
-      .ripple-wrap {
-        position: relative;
-        overflow: hidden;
-      }
-      .ripple-wrap .ripple {
-        position: absolute;
-        border-radius: 50%;
-        background: rgba(255, 255, 255, 0.35);
-        width: 20px;
-        height: 20px;
-        transform: scale(0);
-        animation: ripple 0.5s ease-out;
-        pointer-events: none;
-      }
-
       /* ═══ 按钮 ═══ */
       .btn {
         padding: 10px 20px;
@@ -566,8 +837,8 @@
         border-color: var(--border-strong);
       }
       .btn-primary {
-        background: var(--text);
-        color: var(--bg);
+        background: var(--primary);
+        color: white;
       }
       .btn-primary:hover {
         opacity: 0.85;
@@ -582,7 +853,7 @@
       .btn-text-danger {
         background: none;
         border: 1px solid var(--border);
-        color: #dc2626;
+        color: var(--danger-fg);
         font-size: 12px;
         padding: 6px 14px;
         border-radius: var(--radius-sm);
@@ -590,55 +861,73 @@
         font-family: var(--font);
       }
       .btn-text-danger:hover {
-        background: #fef2f2;
-        border-color: #fecaca;
-      }
-      @media (prefers-color-scheme: dark) {
-        .btn-text-danger:hover {
-          background: rgba(220, 38, 38, 0.1);
-          border-color: rgba(220, 38, 38, 0.2);
-        }
+        background: var(--danger-bg);
+        border-color: var(--danger-border);
       }
 
-      /* ═══ 备份按钮 ═══ */
+      /* ═══ 备份按钮 ═══
+         导出与导入成对并排（.backup-row）。这两个是同一类的动作——都是把配置搬进搬出，
+         没有主次之分，各占半宽并排比上下堆叠更省高度，也让 324px 的窄列不至于被两个全宽条填满。 */
+      .backup-row {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+      }
       .backup-btn {
         width: 100%;
+        min-width: 0;
         display: flex;
         align-items: center;
         justify-content: center;
         gap: 8px;
-        padding: 12px 20px;
+        /* 并排后每个按钮只剩约 158px，横向内边距由 20px 收到 12px 给文字让位 */
+        padding: 12px 12px;
         border-radius: var(--radius-sm);
         font-weight: 600;
         cursor: pointer;
         font-size: 13px;
         font-family: var(--font);
         border: none;
+        white-space: nowrap;
         transition: all var(--transition);
       }
       .backup-btn svg {
         width: 16px;
         height: 16px;
+        /* 按钮变窄后图标不许被文字挤扁 */
+        flex-shrink: 0;
       }
       .backup-btn.export {
-        background: var(--text);
-        color: var(--bg);
+        background: var(--primary);
+        color: white;
       }
       .backup-btn.export:hover {
         opacity: 0.85;
       }
-      .backup-btn.import {
+      /* 检测到新版本时，这颗按钮从主色灰换成实底琥珀，和「有新版本」徽标同源 ——
+         整张卡片只有这一处暖色，说的就是「点我」。
+         必须靠 .is-update 加上去：backup-btn export 这套外观备份卡的「导出配置」
+         也在用，不加限定的话那颗也会跟着变色。 */
+      .backup-btn.export.is-update {
+        background: var(--update-fg);
+        color: var(--update-on);
+      }
+      /* 次级按钮。备份卡的「导入」和关于卡的「意见反馈」共用同一套外观，
+         所以合并成一条规则；.ghost 是按角色另起的名字，免得在反馈按钮上
+         挂一个叫 import 的类名。 */
+      .backup-btn.import,
+      .backup-btn.ghost {
         background: var(--surface);
         color: var(--text);
         border: 1px solid var(--border);
         box-sizing: border-box;
       }
-      .backup-btn.import:hover {
+      .backup-btn.import:hover,
+      .backup-btn.ghost:hover {
         background: var(--border);
         border-color: var(--border-strong);
       }
-
-      /* ═══ CSS 选择器区域 ═══ */
+      /* ═══ 额外匹配与排除区域 ═══ */
       .selector-group {
         margin-bottom: 18px;
       }
@@ -714,7 +1003,7 @@
       }
       .form-input:focus {
         border-color: var(--border-strong);
-        box-shadow: 0 0 0 3px var(--accent-glow-soft);
+        box-shadow: 0 0 0 3px var(--focus-ring);
       }
       .form-input::placeholder {
         color: var(--text-muted);
@@ -780,32 +1069,27 @@
       .font-input-wrapper {
         position: relative;
       }
+      /* 盒子照 popup 的 .dropdown-list 走（同一套内边距、圆角、入场动画），
+         项样式复用上面的 .dropdown-item。
+         和语言下拉不同，这个留在输入框里用 absolute 定位：它已经在模态遮罩
+         （z-index 1000）内部，不会被卡片那两道裁剪切到，用不着挪到 body。
+         max-height + overflow 是虚拟列表的前提 —— shared.js 靠 clientHeight
+         算可视行数，没有固定高的滚动容器就退化成全量渲染。 */
       .font-dropdown {
         position: absolute;
-        top: 100%;
+        top: calc(100% + 6px);
         left: 0;
         right: 0;
-        background: var(--card-bg);
-        border: 1px solid var(--border);
-        border-radius: var(--radius-sm);
+        padding: 6px;
+        background: var(--dropdown-bg);
+        border: 1px solid var(--dropdown-border);
+        border-radius: 6px;
+        box-shadow: var(--dropdown-shadow);
         max-height: 200px;
         overflow-y: auto;
-        box-shadow: var(--shadow-md);
         z-index: 1001;
         display: none;
-        padding: 4px;
-        margin-top: 4px;
-      }
-      .font-dropdown-item {
-        padding: 10px 14px;
-        font-size: 13px;
-        border-radius: 6px;
-        cursor: pointer;
-        transition: all var(--transition);
-        color: var(--text);
-      }
-      .font-dropdown-item:hover {
-        background: var(--surface);
+        animation: dropdownFade 0.2s ease;
       }
 
       /* ═══ 保存按钮 ═══ */
@@ -817,8 +1101,8 @@
       .save-btn {
         padding: 10px 24px;
         border-radius: var(--radius-sm);
-        background: var(--text);
-        color: var(--bg);
+        background: var(--primary);
+        color: white;
         border: none;
         font-size: 13px;
         font-weight: 600;
@@ -847,7 +1131,7 @@
       .desc code {
         background: var(--surface);
         padding: 2px 6px;
-        border-radius: 4px;
+        border-radius: var(--radius-sm);
         font-family: var(--font);
         font-size: 12px;
         border: 1px solid var(--border);
@@ -855,19 +1139,15 @@
     </style>
   </head>
   <body>
-    <!-- 渐变光斑 -->
-    <div class="glow-orb orb-1"></div>
-    <div class="glow-orb orb-2"></div>
-
     <div class="container">
       <div class="grid">
         <!-- ═══ 第一栏：左侧 ═══ -->
         <div class="left-col" style="display: flex; flex-direction: column; gap: 24px;">
           <!-- 站点管理 -->
-          <div class="section" data-color="green" style="margin-bottom: 0;">
+          <div class="section" style="margin-bottom: 0;">
             <div class="section-header">
               <h2>
-                <span class="icon-wrap green">
+                <span class="icon-wrap blue">
                   <svg
                     viewBox="0 0 24 24"
                     fill="none"
@@ -883,19 +1163,25 @@
                     />
                   </svg>
                 </span>
-                站点管理
+                <span data-i18n="options.sites.title">站点管理</span>
               </h2>
-              <button id="clear-sites" class="btn-text-danger">清空全部</button>
+              <button
+                id="clear-sites"
+                class="btn-text-danger"
+                data-i18n="options.sites.clearAll"
+              >
+                清空全部
+              </button>
             </div>
 
             <div class="notice-card">
-              <h3>管理逻辑说明</h3>
-              <p>
-                在扩展弹窗中，当您在特定网站上<b>切换了“仅此站点”的选项</b>（如：阅读进度条、专注模式），或者选择了<b>“单独定制”字体</b>时，系统都会自动在这里生成一条该站点的专属记录。<br /><br />
+              <h3 data-i18n="options.sites.noticeHeading">管理逻辑说明</h3>
+              <p data-i18n-html="options.sites.noticeBody">
+                在扩展弹窗中，当您在特定网站上<b>切换了站点开关</b>，或者选择了<b>“本站字体”</b>时，这里会自动生成一条该站点的专属记录；完全跟随全局设置的站点不占记录。<br /><br />
                 <b>白名单效应</b>（站点头衔为 <span class="badge badge-custom">ON</span>）：<br />
-                当您关闭了扩展的“总开关”，但该站点在列表中是开启（ON）状态时，扩展字体和阅读效果在<b>这个特定站点仍然会生效</b>。<br /><br />
+                当您关闭了扩展的“总开关”，但该站点在列表中是开启（ON）状态时，扩展字体替换在<b>这个特定站点仍然会生效</b>。<br /><br />
                 <b>黑名单效应</b>（站点头衔为 <span class="badge badge-off">OFF</span>）：<br />
-                当您开启了扩展的“总开关”，但该站点在列表中是关闭（OFF）状态时，扩展在这个站点将被禁用，<b>恢复原网页原本的显示效果</b>。<br />
+                当您开启了扩展的“总开关”，但该站点在列表中是关闭（OFF）状态时，扩展在这个站点将被禁用，<b>恢复原网页原本的显示效果</b>。
               </p>
             </div>
 
@@ -904,11 +1190,11 @@
             </div>
           </div>
 
-          <!-- CSS 选择器 -->
-          <div class="section" data-color="slate" style="margin-bottom: 0;">
+          <!-- 额外匹配与排除 -->
+          <div class="section" style="margin-bottom: 0;">
             <div class="section-header">
               <h2>
-                <span class="icon-wrap slate">
+                <span class="icon-wrap violet">
                   <svg
                     viewBox="0 0 24 24"
                     fill="none"
@@ -921,10 +1207,10 @@
                     <polyline points="8 6 2 12 8 18" />
                   </svg>
                 </span>
-                CSS 选择器
+                <span data-i18n="options.selectors.title">额外匹配与排除</span>
               </h2>
             </div>
-            <p class="desc">
+            <p class="desc" data-i18n-html="options.selectors.desc">
               将特定元素强制应用字体预设，每行一个选择器（如
               <code>.article-body</code>）。
             </p>
@@ -932,7 +1218,8 @@
             <div class="selector-group">
               <div class="selector-label-row">
                 <div class="selector-label">
-                  <span class="dot blue"></span> 标准字体
+                  <span class="dot blue"></span>
+                  <span data-i18n="options.selectors.label.standard">标准字体</span>
                 </div>
                 <span class="selector-tag">Standard</span>
               </div>
@@ -946,7 +1233,8 @@
             <div class="selector-group">
               <div class="selector-label-row">
                 <div class="selector-label">
-                  <span class="dot green"></span> 代码 / 等宽
+                  <span class="dot green"></span>
+                  <span data-i18n="options.selectors.label.mono">代码 / 等宽</span>
                 </div>
                 <span class="selector-tag">Monospace</span>
               </div>
@@ -960,7 +1248,8 @@
             <div class="selector-group">
               <div class="selector-label-row">
                 <div class="selector-label">
-                  <span class="dot amber"></span> 数学公式
+                  <span class="dot amber"></span>
+                  <span data-i18n="options.selectors.label.math">数学公式</span>
                 </div>
                 <span class="selector-tag">Math</span>
               </div>
@@ -974,7 +1263,8 @@
             <div class="selector-group">
               <div class="selector-label-row">
                 <div class="selector-label">
-                  <span class="dot slate"></span> 排除替换
+                  <span class="dot slate"></span>
+                  <span data-i18n="options.selectors.label.exclude">排除替换</span>
                 </div>
                 <span class="selector-tag">Exclude</span>
               </div>
@@ -985,7 +1275,11 @@
               ></textarea>
             </div>
 
-            <p class="desc" style="margin-top: -8px; margin-bottom: 0;">
+            <p
+              class="desc"
+              data-i18n-html="options.selectors.note"
+              style="margin-top: -8px; margin-bottom: 0;"
+            >
               支持逗号或换行分隔。排除项写元素本身即可，不需要手动写 <code>::before</code>。
             </p>
 
@@ -1001,7 +1295,7 @@
                 >
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
-                保存
+                <span data-i18n="common.save">保存</span>
               </button>
             </div>
           </div>
@@ -1010,10 +1304,10 @@
         <!-- ═══ 第二栏：右侧 ═══ -->
         <div class="right-col" style="display: flex; flex-direction: column; gap: 24px;">
           <!-- 方案管理 -->
-          <div class="section" data-color="blue" style="margin-bottom: 0;">
+          <div class="section" style="margin-bottom: 0;">
             <div class="section-header">
               <h2>
-                <span class="icon-wrap blue">
+                <span class="icon-wrap green">
                   <svg
                     viewBox="0 0 24 24"
                     fill="none"
@@ -1022,14 +1316,12 @@
                     stroke-linecap="round"
                     stroke-linejoin="round"
                   >
-                    <path
-                      d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"
-                    />
-                    <polyline points="17 21 17 13 7 13 7 21" />
-                    <polyline points="7 3 7 8 15 8" />
+                    <polygon points="12 2 2 7 12 12 22 7 12 2" />
+                    <polyline points="2 17 12 22 22 17" />
+                    <polyline points="2 12 12 17 22 12" />
                   </svg>
                 </span>
-                方案库
+                <span data-i18n="options.schemes.title">方案库</span>
               </h2>
             </div>
             <div id="schemes-container" class="scheme-list">
@@ -1038,7 +1330,7 @@
           </div>
 
           <!-- 存储容量 -->
-          <div class="section" data-color="amber" style="margin-bottom: 0;">
+          <div class="section" style="margin-bottom: 0;">
             <div class="section-header">
               <h2>
                 <span class="icon-wrap amber">
@@ -1050,37 +1342,41 @@
                     stroke-linecap="round"
                     stroke-linejoin="round"
                   >
-                    <path
-                      d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"
-                    />
-                    <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-                    <line x1="12" y1="22.08" x2="12" y2="12" />
+                    <ellipse cx="12" cy="5" rx="9" ry="3" />
+                    <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
+                    <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
                   </svg>
                 </span>
-                存储记录
+                <span data-i18n="options.storage.title">存储记录</span>
               </h2>
             </div>
             <div class="storage-card">
               <div class="storage-header">
-                <span>占用率</span>
+                <span data-i18n="options.storage.usageLabel">占用率</span>
                 <span
                   id="storage-percentage"
-                  style="color: #3b82f6; font-family: var(--font)"
+                  style="color: var(--blue-fg); font-family: var(--font)"
                   >0%</span
                 >
               </div>
               <div class="storage-bar-track">
                 <div id="storage-bar" class="storage-bar-fill"></div>
               </div>
-              <div id="storage-text" class="storage-detail">载入中...</div>
+              <div
+                id="storage-text"
+                class="storage-detail"
+                data-i18n="options.storage.loading"
+              >
+                载入中...
+              </div>
             </div>
           </div>
 
           <!-- 配置备份 -->
-          <div class="section" data-color="violet" style="margin-bottom: 0;">
+          <div class="section" style="margin-bottom: 0;">
             <div class="section-header">
               <h2>
-                <span class="icon-wrap violet">
+                <span class="icon-wrap rose">
                   <svg
                     viewBox="0 0 24 24"
                     fill="none"
@@ -1089,62 +1385,133 @@
                     stroke-linecap="round"
                     stroke-linejoin="round"
                   >
-                    <polyline points="8 17 12 21 16 17" />
-                    <line x1="12" y1="12" x2="12" y2="21" />
-                    <path
-                      d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"
-                    />
+                    <polyline points="21 8 21 21 3 21 3 8" />
+                    <rect x="1" y="3" width="22" height="5" />
+                    <line x1="10" y1="12" x2="14" y2="12" />
                   </svg>
                 </span>
-                重置与备份
+                <span data-i18n="options.backup.title">配置备份</span>
               </h2>
             </div>
-            <p class="desc" style="margin-bottom: 14px">导入、导出或清理配置选项。</p>
+            <p class="desc" data-i18n="options.backup.desc" style="margin-bottom: 14px">
+              导出配置以便备份或换机；导入可从文件恢复。
+            </p>
             <div style="display: flex; flex-direction: column; gap: 8px">
-              <button id="export-config" class="backup-btn export">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2.5"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                  <polyline points="7 10 12 15 17 10" />
-                  <line x1="12" y1="15" x2="12" y2="3" />
-                </svg>
-                导出配置
+              <div class="backup-row">
+                <button id="export-config" class="backup-btn export">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  <span data-i18n="options.backup.export">导出配置</span>
+                </button>
+                <label class="backup-btn import">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="17 8 12 3 7 8" />
+                    <line x1="12" y1="3" x2="12" y2="15" />
+                  </svg>
+                  <span data-i18n="options.backup.import">导入配置</span>
+                  <input
+                    type="file"
+                    id="import-config"
+                    accept=".json"
+                    style="display: none"
+                  />
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- 界面语言 -->
+          <div class="section" style="margin-bottom: 0;">
+            <div class="section-header">
+              <h2>
+                <span class="icon-wrap neutral">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="m5 8 6 6" />
+                    <path d="m4 14 6-6 2-3" />
+                    <path d="M2 5h12" />
+                    <path d="M7 2h1" />
+                    <path d="m22 22-5-10-5 10" />
+                    <path d="M14 18h6" />
+                  </svg>
+                </span>
+                <span id="lang-heading" data-i18n="options.language.title">界面语言</span>
+              </h2>
+            </div>
+            <p class="desc" data-i18n="options.language.desc" style="margin-bottom: 14px;">
+              选择扩展界面的显示语言。「跟随浏览器」会随浏览器的界面语言自动切换。
+            </p>
+            <div class="lang-dropdown">
+              <!-- 触发器上的字由 JS 现取当前选项的文案（见 syncLocaleTrigger）：
+                   它会随选中项变化，挂 data-i18n 会被 localizePage 冲回默认值。 -->
+              <button
+                type="button"
+                id="ui-locale-trigger"
+                class="lang-trigger"
+                aria-haspopup="listbox"
+                aria-expanded="false"
+                aria-labelledby="lang-heading ui-locale-value"
+              >
+                <span id="ui-locale-value">跟随浏览器</span>
+                <span class="chevron-icon" aria-hidden="true">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="3"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </span>
               </button>
-              <label class="backup-btn import">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2.5"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                  <polyline points="17 8 12 3 7 8" />
-                  <line x1="12" y1="3" x2="12" y2="15" />
-                </svg>
-                导入配置
-                <input
-                  type="file"
-                  id="import-config"
-                  accept=".json"
-                  style="display: none"
-                />
-              </label>
+              <!-- 这份列表在 init 时会被 JS 挪到 <body> 上（见 bindLocaleSwitcher）：
+                   留在卡片里会被卡片的 overflow 与 transform 裁掉。 -->
+              <div
+                class="lang-dropdown-list"
+                id="ui-locale-list"
+                role="listbox"
+                aria-labelledby="lang-heading"
+              >
+                <div class="dropdown-item" role="option" tabindex="-1" data-value="auto" data-i18n="options.language.auto">
+                  跟随浏览器
+                </div>
+                <div class="dropdown-item" role="option" tabindex="-1" data-value="zh_CN">简体中文</div>
+                <div class="dropdown-item" role="option" tabindex="-1" data-value="en">English</div>
+              </div>
             </div>
           </div>
 
           <!-- 更新提示 -->
-          <div class="section" data-color="blue" style="margin-bottom: 0;">
+          <div class="section" style="margin-bottom: 0;">
              <div class="section-header">
               <h2>
-                <span class="icon-wrap blue">
+                <span class="icon-wrap slate">
                   <svg
                     viewBox="0 0 24 24"
                     fill="none"
@@ -1153,23 +1520,40 @@
                     stroke-linecap="round"
                     stroke-linejoin="round"
                   >
-                    <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="16" x2="12" y2="12" />
+                    <line x1="12" y1="8" x2="12.01" y2="8" />
                   </svg>
                 </span>
-                关于 PureRead
+                <span data-i18n="options.about.title">关于 PureRead</span>
               </h2>
             </div>
             <p class="desc" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
-              <span>当前版本：<b id="opt-current-version" style="font-family: monospace;">...</b></span>
-              <span id="opt-update-badge" style="display: none; font-size: 11px; padding: 2px 8px; background: #fee2e2; color: #dc2626; border-radius: 12px; font-weight: bold;">发现新版本!</span>
+              <span
+                ><span data-i18n="options.about.version">当前版本：</span>
+                <b id="opt-current-version">...</b></span
+              >
+              <!-- 「有新版本」四个字，与下面三颗按钮的「检查更新 / 意见反馈 / 隐私说明」
+                   对齐，整张卡片的中文标签就都是四字。版本号接在它后面
+                   （「有新版本 v1.1.0」），所以这一整句由 applyUpdateState() 填，
+                   这里不挂 data-i18n —— 挂了的话 localizePage() 会把版本号冲掉。 -->
+              <span
+                id="opt-update-badge"
+                style="display: none; font-size: 11px; padding: 2px 8px; background: var(--update-bg); color: var(--update-fg); border-radius: 12px; font-weight: bold; white-space: nowrap;"
+                >有新版本</span
+              >
             </p>
-            <p class="desc" style="margin-bottom: 18px;">保持扩展更新以获取最新的界面优化和阅读增强特性。</p>
-            <a id="opt-update-link" href="https://github.com/Dnzzk2/PureRead/releases" target="_blank" style="text-decoration: none;">
-              <button class="backup-btn export" style="background: var(--accent); width: 100%;">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
-                <span id="opt-update-text">检查 GitHub 更新</span>
-              </button>
-            </a>
+            <p class="desc" data-i18n="options.about.desc" style="margin-bottom: 18px;">
+              保持扩展更新以获取最新的界面优化和功能改进。
+            </p>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              <a id="opt-update-link" href="https://github.com/Dnzzk2/PureRead/releases" target="_blank" style="text-decoration: none;">
+                <button id="opt-update-btn" class="backup-btn export" style="width: 100%;">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
+                  <span id="opt-update-text" data-i18n="options.about.checkUpdates">检查更新</span>
+                </button>
+              </a>
+            </div>
           </div>
         </div>
       </div>
@@ -1178,10 +1562,13 @@
     <!-- 模态框 -->
     <div class="modal-overlay" id="modal-overlay">
       <div class="modal">
-        <div class="modal-title" id="modal-title">标题</div>
-        <div class="modal-body" id="modal-body">内容</div>
+        <div class="modal-title" id="modal-title"></div>
+        <div class="modal-body" id="modal-body"></div>
         <div id="modal-custom-content"></div>
         <div class="modal-footer">
+          <!-- 两个按钮的文案一律由 modal.show() 在打开时用 t() 现设，
+               不挂 data-i18n：否则开着弹窗切语言时，localizePage 会把
+               已经按上下文定好的「立即删除」冲回默认的「确定」。 -->
           <button class="btn btn-ghost" id="modal-cancel">取消</button>
           <button class="btn btn-primary" id="modal-confirm">确定</button>
         </div>
@@ -1189,20 +1576,7 @@
     </div>
 
     <script src="shared.js"></script>
+    <script src="i18n.js"></script>
     <script src="options.js"></script>
-    <script type="text/plain" id="ripple-inline-disabled">
-      // 涟漪效果
-      document.addEventListener("click", (e) => {
-        const btn = e.target.closest(".btn, .backup-btn, .save-btn");
-        if (!btn) return;
-        const rect = btn.getBoundingClientRect();
-        const ripple = document.createElement("span");
-        ripple.className = "ripple";
-        ripple.style.left = e.clientX - rect.left - 10 + "px";
-        ripple.style.top = e.clientY - rect.top - 10 + "px";
-        btn.appendChild(ripple);
-        ripple.addEventListener("animationend", () => ripple.remove());
-      });
-    </script>
   </body>
 </html>

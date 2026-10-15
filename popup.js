@@ -1,32 +1,53 @@
 // 使用 shared.js 中的 DEFAULT_MAPPING 和 DEFAULT_TYPO
 
+// i18n 简写。模板可信、替换值不可信：t() 进 textContent，tHtml() 进 innerHTML。
+const t = (key, subs) => I18n.t(key, subs);
+const tHtml = (key, subs) => I18n.tHtml(key, subs);
+
+// 取当前标签页可用于站点配置的域名；返回空串表示这个页面不支持站点级设置。
+//
+// 判定跟 content_scripts 的 <all_urls> 对齐：它只匹配 http / https / file / ftp
+// 这几种协议，其余页面脚本压根不注入。这里刻意用白名单而不是黑名单 ——
+// 黑名单只挡得住想得到的协议，实测下来两个方向都会错：
+//   file:// 的 hostname 是空串，会被误判成「不支持」（用户开了文件访问权限后其实能注入）；
+//   devtools:// 之类解析出的 hostname 非空，反而会被当成正常站点，放行一个永不生效的配置。
+//
+// Chrome 另外硬性禁止在应用商店页面注入内容脚本，哪怕地址是 https。
+// 必须单独排除，否则用户逛商店时能写进一条永远不生效的规则。
+const UNSCRIPTABLE = [
+  { host: "chromewebstore.google.com" },
+  { host: "chrome.google.com", path: "/webstore" }, // 旧版商店地址
+];
+
+const resolveDomain = (url) => {
+  if (!url) return "";
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch (e) {
+    return ""; // about:blank 等解析不了的一律不支持
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return "";
+
+  const blocked = UNSCRIPTABLE.some(
+    (rule) =>
+      parsed.hostname === rule.host &&
+      (!rule.path || parsed.pathname.startsWith(rule.path)),
+  );
+  return blocked ? "" : parsed.hostname;
+};
+
 document.addEventListener("DOMContentLoaded", async () => {
   const els = {
     globalSwitch: document.getElementById("global-switch"),
     siteSwitch: document.getElementById("site-switch"),
     modeRadios: document.querySelectorAll('input[name="mode"]'),
     domainDisplay: document.getElementById("domain-display"),
-    mappingLabel: document.getElementById("mapping-label"),
     selectors: document.querySelectorAll(".font-input"),
-    typoRanges: document.querySelectorAll(".style-range"),
-    typoSwitch: document.getElementById("typo-switch"),
-    typoCard: document.getElementById("typo-card"),
     loading: document.getElementById("loading-tip"),
-    selectorStd: document.getElementById("selectors-standard"),
-    selectorMono: document.getElementById("selectors-mono"),
-    selectorMath: document.getElementById("selectors-math"),
-    selectorExclude: document.getElementById("selectors-exclude"),
-    selectorPickTarget: document.getElementById("selector-pick-target"),
-    selectorPickButton: document.getElementById("selector-pick-button"),
-    // 新功能
-    progressSwitch: document.getElementById("progress-switch"),
-    progressColor: document.getElementById("progress-color"),
-    focusSwitch: document.getElementById("focus-switch"),
-    darkSwitch: document.getElementById("dark-switch"),
-    readtimeSwitch: document.getElementById("readtime-switch"),
-    shortcutsSwitch: document.getElementById("shortcuts-enabled"),
-    shortcutsConfigBtn: document.getElementById("configure-shortcuts"),
-    domainDisplay: document.getElementById("domain-display")
+    fontLimitHint: document.getElementById("font-limit-hint"),
+    fontLimitText: document.getElementById("font-limit-text"),
+    selectorPickButtons: document.querySelectorAll(".selector-pick-btn"),
   };
 
   // 核心变量
@@ -38,29 +59,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   let skipNextSync = false;
   let isRefreshing = false;
 
-  const applySelectorCopy = () => {
-    const panelTitle = document.querySelector(".selector-title span");
-    if (panelTitle) panelTitle.textContent = "作用范围与排除";
-
-    const labels = document.querySelectorAll(".selector-label");
-    if (labels[0]) labels[0].textContent = "额外匹配 ・ 标准字体";
-    if (labels[1]) labels[1].textContent = "额外匹配 ・ 代码 / 等宽";
-    if (labels[2]) labels[2].textContent = "额外匹配 ・ 数学公式";
-  };
-
   // 1. 初始化流程
-  const PICK_TARGET_LABELS = {
-    standard: "额外匹配 ・ 标准字体",
-    mono: "额外匹配 ・ 代码 / 等宽",
-    math: "额外匹配 ・ 数学公式",
-    exclude: "排除替换 ・ 全局",
-  };
-
-  const startSelectorPicker = async () => {
+  // 目标项由按钮的 data-target 决定（standard / mono / math / exclude），
+  // 按钮文案写在 popup.html 里，与 options 的四个规则项同名。
+  const startSelectorPicker = async (target = "standard") => {
     if (!tab?.id || !domain) return;
-
-    // Use dataset.value (e.g., 'standard') instead of display text
-    const target = els.selectorPickTarget?.dataset.value || "standard";
     try {
       await chrome.tabs.sendMessage(tab.id, {
         action: "startSelectorPicker",
@@ -72,46 +75,77 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   };
 
-  const init = async () => {
-    applySelectorCopy();
-    const selectorLabels = document.querySelectorAll(".selector-label");
-    if (selectorLabels[3]) selectorLabels[3].textContent = "排除替换 ・ 全局";
-    if (els.selectorPickButton) els.selectorPickButton.textContent = "开始拾取";
-    if (els.selectorPickTarget) {
-      if (els.selectorPickTarget.options) {
-        Array.from(els.selectorPickTarget.options).forEach((option) => {
-          option.textContent = PICK_TARGET_LABELS[option.value] || option.textContent;
-        });
-      } else {
-        // Handle custom input-based dropdown
-        const val = els.selectorPickTarget.dataset.value || "standard";
-        els.selectorPickTarget.value = PICK_TARGET_LABELS[val];
-        els.selectorPickTarget.dataset.value = val;
-      }
+  // 不支持的页面（chrome:// 等）：禁用站点级控件，避免产生无意义的站点配置
+  const applySiteAvailability = () => {
+    const supported = Boolean(domain);
+
+    if (els.siteSwitch) {
+      els.siteSwitch.disabled = !supported;
+      if (!supported) els.siteSwitch.checked = false;
     }
+
+    const segmented = document.querySelector(".segmented-control");
+    if (segmented) segmented.classList.toggle("is-disabled", !supported);
+
+    const siteCard = document.getElementById("site-card");
+    if (siteCard) siteCard.classList.toggle("is-unsupported", !supported);
+
+    // 页面拾取依赖内容脚本注入，浏览器内置页注入不了，一并禁用，
+    // 否则点击后只会静默失败（popup 不关、页面无任何反应）。
+    els.selectorPickButtons.forEach((btn) => (btn.disabled = !supported));
+
+    const pickerControls = document.querySelector(".selector-picker-controls");
+    if (pickerControls) pickerControls.classList.toggle("is-disabled", !supported);
+
+    const picker = document.getElementById("selector-picker");
+    if (picker) picker.classList.toggle("is-unsupported", !supported);
+
+    els.modeRadios.forEach((radio) => {
+      radio.disabled = !supported;
+    });
+
+    if (!supported) {
+      const globalRadio = document.querySelector(
+        'input[name="mode"][value="global"]',
+      );
+      if (globalRadio) globalRadio.checked = true;
+    }
+  };
+
+  // 拿不到系统字体列表时（Firefox 未实现 chrome.fontSettings），
+  // 下拉里只剩 shared.js 的 11 个兜底字体。这里明确说明原因并给出解法，
+  // 否则用户会以为「字体列表就这么少」而放弃。
+  const applyFontListHint = () => {
+    if (!els.fontLimitHint || !FontLoader.usingFallbackFonts) return;
+
+    const browser = /firefox/i.test(navigator.userAgent)
+      ? "Firefox"
+      : t("common.currentBrowser");
+    if (els.fontLimitText) {
+      els.fontLimitText.innerHTML = tHtml("popup.fontLimit.hint", { browser });
+    }
+    els.fontLimitHint.classList.add("is-visible");
+  };
+
+  const init = async () => {
     // 获取域名
     try {
       const [currentTab] = await chrome.tabs.query({
         active: true,
         currentWindow: true,
       });
-      if (
-        currentTab &&
-        currentTab.url &&
-        !currentTab.url.startsWith("chrome://") &&
-        !currentTab.url.startsWith("edge://")
-      ) {
-        domain = new URL(currentTab.url).hostname;
-      }
+      domain = resolveDomain(currentTab?.url);
       tab = currentTab;
     } catch (e) {
       console.error("[PureRead] 获取环境信息失败:", e.message);
     }
-    if (els.domainDisplay) els.domainDisplay.innerText = domain || "不支持的页面";
+    if (els.domainDisplay)
+      els.domainDisplay.innerText = domain || t("popup.unsupportedPage");
 
     // 加载字体
     allFonts = await FontLoader.load();
     if (els.loading) els.loading.style.display = "none";
+    applyFontListHint();
 
     // 首次同步 UI
     await refreshUI(true);
@@ -127,12 +161,20 @@ document.addEventListener("DOMContentLoaded", async () => {
       const result = await Storage.get(["settings"]);
       const rawSettings = result.settings;
       data = DataValidator.ensureSettings(rawSettings);
-      if (
+
+      let needsPersist =
         rawSettings === undefined ||
         rawSettings === null ||
         typeof rawSettings !== "object" ||
-        Array.isArray(rawSettings)
-      ) {
+        Array.isArray(rawSettings);
+
+      // 清理历史遗留：旧版本在 chrome:// 等页面误写入的 sites[""] 空域名
+      if (Object.prototype.hasOwnProperty.call(data.sites, "")) {
+        delete data.sites[""];
+        needsPersist = true;
+      }
+
+      if (needsPersist) {
         skipNextSync = true;
         await Storage.set({ settings: data });
       }
@@ -154,46 +196,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       );
       if (activeModeInput) activeModeInput.checked = true;
 
+      // 不支持的页面：强制回退到全局模式并禁用站点控件
+      applySiteAvailability();
+
       // 同步映射与样式
       updateMappingUI(data, siteData);
-      updateTypoSwitchUI();
-
-      // 同步补充选择器
-      const selectors = DataValidator.ensureSelectors(data.global.selectors);
-      if (els.selectorStd) els.selectorStd.value = selectors.include.standard || "";
-      if (els.selectorMono) els.selectorMono.value = selectors.include.mono || "";
-      if (els.selectorMath) els.selectorMath.value = selectors.include.math || "";
-      if (els.selectorExclude) els.selectorExclude.value = selectors.exclude || "";
-
-      // 同步阅读增强
-      const features = data.global.features || {};
-      const progressBar = features.progressBar || {
-        enabled: false,
-        color: "#10b981",
-      };
-      if (els.progressSwitch) els.progressSwitch.checked = progressBar.enabled;
-      if (els.progressColor)
-        els.progressColor.value = progressBar.color || "#10b981";
-      if (els.focusSwitch)
-        els.focusSwitch.checked = siteData.focusMode ?? false;
-      if (els.darkSwitch) els.darkSwitch.checked = features.forceDark ?? false;
-      if (els.readtimeSwitch)
-        els.readtimeSwitch.checked = features.readingTime ?? false;
-
-      // 同步快捷键
-      const shortcutsEnabled = data.global.shortcutsEnabled !== false;
-      if (els.shortcutsSwitch) {
-        els.shortcutsSwitch.checked = shortcutsEnabled;
-        const listContainer = document.getElementById(
-          "shortcuts-list-container",
-        );
-        if (listContainer) {
-          listContainer.style.opacity = shortcutsEnabled ? "1" : "0.5";
-          listContainer.style.pointerEvents = shortcutsEnabled
-            ? "auto"
-            : "none";
-        }
-      }
 
       if (isInitial) {
         setTimeout(() => sliders.forEach((s) => (s.style.transition = "")), 5);
@@ -217,69 +224,40 @@ document.addEventListener("DOMContentLoaded", async () => {
       (sel) => (currentMapping[sel.dataset.key] = sel.value),
     );
 
-    const currentTypo = {
-      enabled: els.typoSwitch?.checked ?? false,
-    };
-    els.typoRanges.forEach((r) => {
-      currentTypo[r.dataset.key] = r.value;
-      updateTypoLabel(r);
-    });
-
-    if (mode === "global" && siteOn === globalOn) {
-      delete data.sites[domain];
-      siteData.on = undefined;
-      siteData.mode = "global";
-    } else {
-      if (!data.sites[domain]) data.sites[domain] = {};
-      const s = data.sites[domain];
-      s.on = siteOn;
-      s.mode = mode;
-      if (mode === "custom") {
-        s.mapping = currentMapping;
-        s.typo = currentTypo;
+    // domain 为空（chrome:// 等不支持的页面）时，不写入任何站点级数据
+    if (domain) {
+      if (mode === "global" && siteOn === globalOn) {
+        delete data.sites[domain];
+        siteData.on = undefined;
+        siteData.mode = "global";
       } else {
-        delete s.mapping;
-        delete s.typo;
+        if (!data.sites[domain]) data.sites[domain] = {};
+        const s = data.sites[domain];
+        s.on = siteOn;
+        s.mode = mode;
+        if (mode === "custom") {
+          s.mapping = currentMapping;
+        } else {
+          delete s.mapping;
+        }
       }
     }
 
     if (mode !== "custom") {
       data.global.mapping = currentMapping;
-      data.global.typo = currentTypo;
       updateMappingUI(data, siteData);
     }
 
-    data.global.selectors = {
-      include: {
-        standard: els.selectorStd?.value || "",
-        mono: els.selectorMono?.value || "",
-        math: els.selectorMath?.value || "",
-      },
-      exclude: els.selectorExclude?.value || "",
-    };
-
-    if (!data.global.features) data.global.features = {};
-    data.global.features.progressBar = {
-      enabled: els.progressSwitch?.checked ?? false,
-      color: els.progressColor?.value || "#10b981",
-    };
-
-    if (domain && els.focusSwitch) {
-      if (!data.sites[domain]) data.sites[domain] = {};
-      data.sites[domain].focusMode = els.focusSwitch.checked;
-      siteData.focusMode = els.focusSwitch.checked;
-    }
-
-    data.global.features.forceDark = els.darkSwitch?.checked ?? false;
-    data.global.features.readingTime = els.readtimeSwitch?.checked ?? false;
-    data.global.shortcutsEnabled = els.shortcutsSwitch?.checked ?? true;
+    // 注意：这里【不能】重写 data.global.selectors。
+    // popup 已不再提供选择器输入框（改由页面拾取器写入、或在 options 里手改），
+    // data 是整份 settings 的拷件，不碰它即原样保留；
+    // 早先那版用 els.selector*.value 无条件重建，元素一删就会把用户已有选择器清空。
 
     skipNextSync = true;
     const success = await Storage.set({ settings: data });
     if (success && tab?.id) {
       try {
         await chrome.tabs.sendMessage(tab.id, { action: "updateStyles", settings: data });
-        await chrome.tabs.sendMessage(tab.id, { action: "updateFeatures", settings: data });
       } catch (e) {}
     }
   };
@@ -301,45 +279,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       saveData();
     }));
 
-    els.typoRanges.forEach((r) => r.addEventListener("input", saveDataDebounced));
-    if (els.typoSwitch) {
-      els.typoSwitch.addEventListener("change", () => {
-        els.typoCard.style.opacity = els.typoSwitch.checked ? "1" : "0.5";
-        els.typoCard.style.pointerEvents = els.typoSwitch.checked ? "auto" : "none";
-        saveData();
-      });
-    }
-
-    if (els.selectorStd) els.selectorStd.addEventListener("input", saveDataDebounced);
-    if (els.selectorMono) els.selectorMono.addEventListener("input", saveDataDebounced);
-    if (els.selectorMath) els.selectorMath.addEventListener("input", saveDataDebounced);
-    if (els.selectorExclude) els.selectorExclude.addEventListener("input", saveDataDebounced);
-    if (els.selectorPickButton) els.selectorPickButton.addEventListener("click", startSelectorPicker);
-
-    if (els.progressSwitch) els.progressSwitch.addEventListener("change", saveData);
-    if (els.progressColor) els.progressColor.addEventListener("input", saveDataDebounced);
-    if (els.focusSwitch) els.focusSwitch.addEventListener("change", saveData);
-    if (els.darkSwitch) els.darkSwitch.addEventListener("change", saveData);
-    if (els.readtimeSwitch) els.readtimeSwitch.addEventListener("change", saveData);
-
-    if (els.shortcutsSwitch) {
-      els.shortcutsSwitch.addEventListener("change", () => {
-        const isEnabled = els.shortcutsSwitch.checked;
-        const listContainer = document.getElementById("shortcuts-list-container");
-        if (listContainer) {
-          listContainer.style.opacity = isEnabled ? "1" : "0.5";
-          listContainer.style.pointerEvents = isEnabled ? "auto" : "none";
-        }
-        saveData();
-      });
-    }
-    if (els.shortcutsConfigBtn) {
-      els.shortcutsConfigBtn.addEventListener("click", () => {
-        const isEdge = navigator.userAgent.includes("Edg/");
-        const url = isEdge ? "edge://extensions/shortcuts" : "chrome://extensions/shortcuts";
-        chrome.tabs.create({ url });
-      });
-    }
+    els.selectorPickButtons.forEach((btn) =>
+      btn.addEventListener("click", () => startSelectorPicker(btn.dataset.target)),
+    );
 
     chrome.storage.onChanged.addListener((changes, area) => {
       if (area === "sync" && changes.settings) {
@@ -351,27 +293,21 @@ document.addEventListener("DOMContentLoaded", async () => {
     els.selectors.forEach((input) => {
       const dropdown = input.closest(".setting-item").querySelector(".dropdown-list");
       input.addEventListener("input", () => {
+        // 手动敲进来的字体名也即时预览：名字还没拼完整时 styleFor 返回空串，
+        // 会落回界面字体，所以不会边打字边跳。
+        applyInputFont(input);
         saveDataDebounced();
         renderDropdown(dropdown, input.value, input);
       });
       input.addEventListener("focus", () => {
-        document.querySelectorAll(".dropdown-list").forEach((d) => (d.style.display = "none"));
+        closeAllDropdowns();
         renderDropdown(dropdown, input.value, input);
-        dropdown.style.display = "block";
       });
     });
 
-    const pickTargetDropdown = document.getElementById("selector-pick-dropdown");
-    if (els.selectorPickTarget && pickTargetDropdown) {
-      els.selectorPickTarget.addEventListener("click", () => {
-        document.querySelectorAll(".dropdown-list").forEach((d) => (d.style.display = "none"));
-        renderPickTargetDropdown(pickTargetDropdown, els.selectorPickTarget);
-      });
-    }
-
     document.addEventListener("click", (e) => {
       if (!e.target.closest(".setting-item") || e.target.closest(".setting-label")) {
-        document.querySelectorAll(".dropdown-list").forEach((d) => (d.style.display = "none"));
+        closeAllDropdowns();
       }
     });
 
@@ -379,7 +315,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       btn.addEventListener("click", () => {
         const key = btn.dataset.target;
         const input = Array.from(els.selectors).find((s) => s.dataset.key === key);
-        if (input) { input.value = ""; saveData(); }
+        if (input) {
+          input.value = "";
+          applyInputFont(input);
+          saveData();
+        }
       });
     });
 
@@ -395,14 +335,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (btnSavePreset) {
       btnSavePreset.addEventListener("click", () => {
         const presetInput = document.getElementById("new-preset-name");
-        const name = presetInput.value.trim() || `方案 ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+        const time = new Date().toLocaleTimeString(I18n.localeTag, {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+        const name = presetInput.value.trim() || t("popup.schemes.defaultName", { time });
         const currentMapping = {};
         els.selectors.forEach((sel) => (currentMapping[sel.dataset.key] = sel.value));
-        const currentTypo = {};
-        els.typoRanges.forEach((r) => (currentTypo[r.dataset.key] = r.value));
         Storage.get(["schemes"]).then(async (res) => {
           const schemes = res.schemes || [];
-          schemes.push({ name, mapping: currentMapping, typo: currentTypo });
+          schemes.push({ name, mapping: currentMapping });
           await Storage.set({ schemes });
           presetInput.value = "";
           loadSchemes();
@@ -412,84 +354,75 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
 
   // UI 辅助函数
-  function updateTypoLabel(input) {
-    const key = input.dataset.key;
-    const val = input.value;
-    const labelMap = { lineHeight: "lh-val", fontSize: "fs-val", fontWeight: "fw-val" };
-    const el = document.getElementById(labelMap[key]);
-    if (el) {
-      if (key === "fontSize") el.innerText = val + "%";
-      else if (key === "fontWeight") el.innerText = (val > 0 ? "+" : "") + val;
-      else el.innerText = val;
-    }
-  }
-
-  function updateTypoSwitchUI() {
-    const checkedMode = document.querySelector('input[name="mode"]:checked');
-    const isCustom = checkedMode && checkedMode.value === "custom";
-    const activeTypo = DataValidator.ensureTypo((isCustom ? siteData.typo : data.global.typo) || DEFAULT_TYPO);
-    if (els.typoSwitch) {
-      els.typoSwitch.checked = activeTypo.enabled === true;
-      els.typoCard.style.opacity = els.typoSwitch.checked ? "1" : "0.5";
-      els.typoCard.style.pointerEvents = els.typoSwitch.checked ? "auto" : "none";
-    }
-  }
-
   function updateMappingUI(data, siteData) {
     const checkedMode = document.querySelector('input[name="mode"]:checked');
     const mode = checkedMode ? checkedMode.value : "global";
     const isCustom = mode === "custom";
-    if (els.mappingLabel) els.mappingLabel.innerText = isCustom ? "当前站点定制" : "全局通用设置";
 
     const activeMapping = DataValidator.ensureMapping(isCustom ? siteData.mapping : data.global.mapping);
-    const activeTypo = DataValidator.ensureTypo((isCustom ? siteData.typo : data.global.typo) || DEFAULT_TYPO);
 
     els.selectors.forEach((input) => {
       input.value = activeMapping[input.dataset.key] || "";
-    });
-    els.typoRanges.forEach((r) => {
-      r.value = activeTypo[r.dataset.key] || DEFAULT_TYPO[r.dataset.key];
-      updateTypoLabel(r);
+      applyInputFont(input);
     });
   }
 
-  function renderPickTargetDropdown(listEl, targetInput) {
-    listEl.innerHTML = "";
-    Object.keys(PICK_TARGET_LABELS).forEach((key) => {
-      const label = PICK_TARGET_LABELS[key];
-      const item = document.createElement("div");
-      item.className = "dropdown-item";
-      if (targetInput.dataset.value === key) item.classList.add("active");
-      item.innerText = label;
-      item.addEventListener("mousedown", (e) => {
-        e.preventDefault();
-        targetInput.value = label;
-        targetInput.dataset.value = key;
-        listEl.style.display = "none";
-      });
-      listEl.appendChild(item);
+  // 输入框里显示的也是字体名，同样用它自身的字形渲染 ——
+  // 选完不用切到页面上看效果。空值必须保持界面字体，
+  // 否则 placeholder（「留空则不替换正文」）会被套成候选字体的样子。
+  function applyInputFont(input) {
+    if (input) FontPreview.apply(input, input.value);
+  }
+
+  // 列表项固定行高由 shared.js 的 DROPDOWN_ITEM_HEIGHT 定，必须与 popup.html 里
+  // .dropdown-item 的 height 保持一致，否则虚拟列表的滚动换算会错位。
+
+  function createFontItem(font, targetInput, listEl) {
+    const item = document.createElement("div");
+    item.className = "dropdown-item";
+    if (font === targetInput.value) item.classList.add("active");
+    item.innerText = font;
+    // 候选字体用它自身的字形渲染自己的名字，省掉一次「选完再切到页面看」的往返
+    FontPreview.apply(item, font);
+    // 部分字体名偏宽会被 ellipsis 截断，hover 时可看全名
+    item.title = font;
+    item.addEventListener("mousedown", (e) => {
+      e.preventDefault();
+      targetInput.value = font;
+      applyInputFont(targetInput);
+      saveData();
+      listEl.style.display = "none";
+      syncChevron(listEl);
     });
-    listEl.style.display = "block";
+    return item;
+  }
+
+  // 箭头（.chevron-icon）跟着列表真实的开合状态翻转，见 popup.html 里那条注释。
+  // 类挂在 .setting-item 上 —— .dropdown-list 是 .input-group 的兄弟，不是子节点。
+  function syncChevron(listEl) {
+    const item = listEl.closest(".setting-item");
+    if (item) item.classList.toggle("dropdown-open", listEl.style.display === "block");
+  }
+
+  function closeAllDropdowns() {
+    document.querySelectorAll(".dropdown-list").forEach((d) => {
+      d.style.display = "none";
+      syncChevron(d);
+    });
   }
 
   function renderDropdown(listEl, filterText, targetInput) {
-    listEl.innerHTML = "";
-    const filtered = allFonts.filter((f) => f.toLowerCase().includes(filterText.toLowerCase()) || filterText === "");
-    if (filtered.length === 0) { listEl.style.display = "none"; return; }
-    filtered.forEach((font) => {
-      const item = document.createElement("div");
-      item.className = "dropdown-item";
-      if (font === targetInput.value) item.classList.add("active");
-      item.innerText = font;
-      item.addEventListener("mousedown", (e) => {
-        e.preventDefault();
-        targetInput.value = font;
-        saveData();
-        listEl.style.display = "none";
-      });
-      listEl.appendChild(item);
-    });
-    listEl.style.display = "block";
+    const query = filterText.toLowerCase();
+    const filtered = query
+      ? allFonts.filter((f) => f.toLowerCase().includes(query))
+      : allFonts.slice();
+
+    VirtualList.render(listEl, filtered, (font) =>
+      createFontItem(font, targetInput, listEl),
+    );
+    // 开还是关由 VirtualList 定（无命中时它会把列表收起来），箭头跟它的结论走。
+    // 这里不能再补一句 display = "block"：那会让「筛不出结果」也弹出一个空框。
+    syncChevron(listEl);
   }
 
   const loadSchemes = async () => {
@@ -502,7 +435,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!presetContainer) return;
     presetContainer.innerHTML = "";
     if (schemes.length === 0) {
-      presetContainer.innerHTML = '<div class="empty-tip">暂无保存的方案</div>';
+      const empty = document.createElement("div");
+      empty.className = "empty-tip";
+      empty.textContent = t("popup.schemes.empty");
+      presetContainer.appendChild(empty);
       return;
     }
     schemes.forEach((s, index) => {
@@ -510,7 +446,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       item.className = "preset-item";
       const escapedName = document.createElement("span");
       escapedName.textContent = s.name;
-      item.innerHTML = `<span class="name">${escapedName.innerHTML}</span><div class="preset-del" data-index="${index}" title="删除方案"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></div>`;
+      item.innerHTML = `<span class="name">${escapedName.innerHTML}</span><div class="preset-del" data-index="${index}" data-i18n-title="popup.schemes.deleteTitle" title="删除方案"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></div>`;
+      // 行是重建出来的，属性文案得当场套一遍，否则会停在中文。
+      I18n.localizePage(item);
       item.addEventListener("click", (e) => {
         if (e.target.closest(".preset-del")) return;
         applyScheme(s, item);
@@ -526,8 +464,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
 
   const applyScheme = (scheme, itemElement) => {
-    els.selectors.forEach((input) => { input.value = scheme.mapping[input.dataset.key] || ""; });
-    els.typoRanges.forEach((r) => { r.value = scheme.typo[r.dataset.key] || DEFAULT_TYPO[r.dataset.key]; updateTypoLabel(r); });
+    const mapping = scheme.mapping || {};
+    els.selectors.forEach((input) => {
+      input.value = mapping[input.dataset.key] || "";
+      applyInputFont(input);
+    });
     saveData();
     if (itemElement) {
       document.querySelectorAll(".preset-item.applied").forEach((el) => el.classList.remove("applied"));
@@ -540,7 +481,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const currentVersion = chrome.runtime.getManifest().version;
     const verBadge = document.getElementById("popup-ver-badge");
     if (!verBadge) return;
-    verBadge.innerText = "v" + currentVersion;
+    verBadge.innerText = "v " + currentVersion;
     chrome.storage.local.get(["latestRelease", "releaseUrl"], (res) => {
       if (res.latestRelease) {
         const parts1 = res.latestRelease.split('.').map(Number);
@@ -553,9 +494,11 @@ document.addEventListener("DOMContentLoaded", async () => {
           if (p1 < p2) { break; }
         }
         if (isNew) {
-          verBadge.innerText = "↑ 更新版本";
+          verBadge.innerText = t("popup.version.badge");
           verBadge.className = "badge badge-update";
-          verBadge.title = "有新版本可更新: v" + res.latestRelease;
+          verBadge.title = t("popup.version.newTitle", {
+            version: res.latestRelease,
+          });
           verBadge.onclick = () => window.open(res.releaseUrl || "https://github.com/Dnzzk2/PureRead/releases", "_blank");
         }
       }
@@ -563,7 +506,29 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // 执行
+  //
+  // 语言分两步落地：I18n 加载时已把 locale 同步定成浏览器语言，所以这里立刻
+  // 套一遍就不会先闪出中文；storage.local 里的偏好是异步读的，读到再整体重来。
+  document.documentElement.lang = I18n.localeTag;
+  I18n.localizePage();
+
+  const applyLocale = () => {
+    document.documentElement.lang = I18n.localeTag;
+    I18n.localizePage();
+    applyFontListHint();
+    loadSchemes();
+  };
+
+  // 设置页改了语言时，开着的 popup 也跟着换。
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== "local" || !changes.uiLocale) return;
+    I18n.applyPref(changes.uiLocale.newValue);
+    applyLocale();
+  });
+
   bindEvents();
+  await I18n.ready;
+  applyLocale();
   await init();
   loadSchemes();
 });
