@@ -974,6 +974,80 @@
         letter-spacing: 0.5px;
       }
 
+      /* ═══ 开关行（内嵌框架） ═══
+         外观与 popup 的总开关同一套：42×24 的方角拨杆，滑块 18×18。
+         这里不复用 popup 的选择器，是因为两个页面各自独立打包、没有共享样式表。 */
+      .toggle-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 14px 16px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+      }
+      .toggle-copy {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        min-width: 0;
+      }
+      .toggle-label {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text);
+        cursor: pointer;
+      }
+      .toggle-hint {
+        font-size: 12px;
+        line-height: 1.55;
+        color: var(--text-light);
+      }
+      .switch {
+        position: relative;
+        display: inline-block;
+        width: 42px;
+        height: 24px;
+        flex-shrink: 0;
+      }
+      .switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+      .slider {
+        position: absolute;
+        inset: 0;
+        cursor: pointer;
+        background-color: var(--border-strong);
+        border-radius: 3px;
+        transition: background-color var(--transition);
+      }
+      .slider::before {
+        content: "";
+        position: absolute;
+        width: 18px;
+        height: 18px;
+        left: 3px;
+        bottom: 3px;
+        background-color: #fff;
+        border-radius: 2px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+        transition: transform var(--transition);
+      }
+      .switch input:checked + .slider {
+        background-color: var(--primary);
+      }
+      .switch input:checked + .slider::before {
+        transform: translateX(18px);
+      }
+      /* 键盘聚焦时描边画在滑块上（原生 input 被透明化，自身焦点框看不见）。 */
+      .switch input:focus-visible + .slider {
+        outline: 2px solid var(--primary-fg);
+        outline-offset: 2px;
+      }
+
       /* ═══ 表单 ═══ */
       .form-group {
         margin-bottom: 20px;
@@ -1297,6 +1371,64 @@
                 </svg>
                 <span data-i18n="common.save">保存</span>
               </button>
+            </div>
+          </div>
+
+          <!-- 内嵌框架 -->
+          <div class="section" style="margin-bottom: 0;">
+            <div class="section-header">
+              <h2>
+                <span class="icon-wrap neutral">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <rect x="2" y="3" width="20" height="18" rx="2" />
+                    <rect x="6" y="7" width="12" height="10" rx="1" />
+                  </svg>
+                </span>
+                <span data-i18n="options.frames.title">内嵌框架</span>
+              </h2>
+            </div>
+            <p
+              class="desc"
+              data-i18n="options.frames.desc"
+              style="margin-bottom: 16px;"
+            >
+              页面里的评论、视频、文档等内容常放在 iframe
+              中。这里决定字体替换是否写进这些内嵌框架。
+            </p>
+            <div class="toggle-row">
+              <div class="toggle-copy">
+                <label
+                  class="toggle-label"
+                  id="iframe-fonts-label"
+                  for="iframe-fonts-switch"
+                  data-i18n="options.frames.toggle"
+                  >应用到内嵌框架</label
+                >
+                <span
+                  class="toggle-hint"
+                  id="iframe-fonts-hint"
+                  data-i18n="options.frames.hint"
+                >
+                  关闭后，内嵌内容保持它原本的字体；站点级开关仍然决定整页是否启用替换。
+                </span>
+              </div>
+              <label class="switch">
+                <input
+                  type="checkbox"
+                  id="iframe-fonts-switch"
+                  aria-labelledby="iframe-fonts-label"
+                  aria-describedby="iframe-fonts-hint"
+                  checked
+                />
+                <span class="slider"></span>
+              </label>
             </div>
           </div>
         </div>

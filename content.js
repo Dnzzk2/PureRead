@@ -1,8 +1,57 @@
+// ── 框架上下文 ────────────────────────────────────────────────
+// manifest 用 all_frames 把本脚本注入每一个子框架，但「是否真的改字体」还要
+// 由设置里的 iframeFonts 开关决定（见 updateContentStyles）。顶层页面与子框架
+// 共用同一份脚本，所以先把这两个判断收在这里。
+const IS_TOP_FRAME = (() => {
+  try {
+    return window.top === window;
+  } catch (_) {
+    return false;
+  }
+})();
+
 // 初始加载
 // i18n.js 由 manifest 排在 content.js 前面注入，同一个 isolated world，
 // 所以这里的 I18n 已经就位。init() 只是把落盘的语言偏好读出来 ——
 // 顶层不碰 DOM（document_start 会把它注进每一个页面）。
-I18n.init();
+// 子框架只会用到注入的字体规则，拾取器/toast 的文案只在顶层出现，
+// 所以跳过一次 storage.local 读取 —— 页面里可能有几十个 iframe。
+if (IS_TOP_FRAME) I18n.init();
+
+// 子框架缺这个字段时按「开启」处理。与 shared.js 的
+// DEFAULT_FEATURES.iframeFonts.enabled 必须保持一致。
+const DEFAULT_IFRAME_FONTS = true;
+
+// 子框架没有「用户地址栏里那个站点」的概念。站点级开关与「本站字体」都按
+// 顶层页面解析 —— 在 example.com 上关掉扩展，它内嵌的 iframe 也应一起停下。
+// ancestorOrigins 跨域可读且只给 origin；referrer 是兜底（no-referrer 时会空）。
+function getFrameSiteDomain() {
+  if (IS_TOP_FRAME) return window.location.hostname;
+
+  try {
+    const origins = window.location.ancestorOrigins;
+    if (origins && origins.length > 0) {
+      const host = new URL(origins[origins.length - 1]).hostname;
+      if (host) return host;
+    }
+  } catch (_) {}
+
+  try {
+    if (document.referrer) {
+      const host = new URL(document.referrer).hostname;
+      if (host) return host;
+    }
+  } catch (_) {}
+
+  return window.location.hostname;
+}
+
+function iframeFontsEnabled(settings) {
+  // 老配置没有这个字段时回落到默认值，不能简单写成 `!== false` ——
+  // 那样一旦默认值改成关闭，这里会悄悄把旧配置当成开启。
+  const enabled = settings?.global?.features?.iframeFonts?.enabled;
+  return typeof enabled === "boolean" ? enabled : DEFAULT_IFRAME_FONTS;
+}
 
 chrome.storage.sync.get(["settings"], (result) => {
   if (result.settings) {
@@ -28,6 +77,9 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
 // 监听来自 Popup / Background 的消息（统一入口）
 chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
   if (request.action === "startSelectorPicker") {
+    // all_frames 之后，popup 的 tabs.sendMessage 会送到每一个框架；拾取器
+    // 只属于顶层页面（坐标、滚动、浮层都按顶层视口算），子框架直接忽略。
+    if (!IS_TOP_FRAME) return;
     startSelectorPicker(request.target);
     if (sendResponse) sendResponse({ ok: true });
     return true;
@@ -59,7 +111,7 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
 });
 
 function updateContentStyles(settings) {
-  const domain = window.location.hostname;
+  const domain = getFrameSiteDomain();
   const global = settings.global || {};
   const sites = settings.sites || {};
   const site = sites[domain];
@@ -68,6 +120,13 @@ function updateContentStyles(settings) {
   const isEnabled = site && typeof site.on === "boolean" ? site.on : global.on;
 
   if (!isEnabled) {
+    return removeStyles();
+  }
+
+  // 子框架只在「应用到内嵌框架」开启时写入样式。关掉开关后这里会走
+  // removeStyles，已经注入过的 iframe 也会立即恢复原样（storage 变化会
+  // 在每个框架里触发一次 updateContentStyles）。
+  if (!IS_TOP_FRAME && !iframeFontsEnabled(settings)) {
     return removeStyles();
   }
 
@@ -454,7 +513,7 @@ function createDefaultSettings() {
         include: { standard: "", mono: "", math: "" },
         exclude: "",
       },
-      features: {},
+      features: { iframeFonts: { enabled: true } },
     },
     sites: {},
   };

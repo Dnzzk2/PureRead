@@ -37,6 +37,11 @@ const DEFAULT_FEATURES = {
     enabled: false,
     color: "#10b981", // 翡翠绿
   },
+  // 字体规则是否也写进 iframe。CSS 的字体继承不跨文档边界，只有内容脚本
+  // 进到子框架里才能真正生效；默认开启，让嵌入式正文和顶层页面观感一致。
+  iframeFonts: {
+    enabled: true,
+  },
   // focusMode 已改为站点级配置，存储在 sites[domain].focusMode
   // 保留此字段仅用于向后兼容
 };
@@ -201,9 +206,7 @@ const DataValidator = {
     settings.global.mapping = DataValidator.ensureMapping(settings.global.mapping);
     settings.global.typo = DataValidator.ensureTypo(settings.global.typo);
     settings.global.selectors = DataValidator.ensureSelectors(settings.global.selectors);
-    if (!settings.global.features) {
-      settings.global.features = JSON.parse(JSON.stringify(DEFAULT_FEATURES));
-    }
+    settings.global.features = DataValidator.ensureFeatures(settings.global.features);
 
     // 确保 sites 存在
     if (!settings.sites || typeof settings.sites !== "object") {
@@ -211,6 +214,52 @@ const DataValidator = {
     }
 
     return settings;
+  },
+
+  /**
+   * 确保 features 数据完整。
+   *
+   * 老版本没有 iframeFonts 字段，必须按默认值（开启）补齐 —— 否则升级后
+   * 内容脚本会把 undefined 当成关闭，功能就静默失效了。未知的 feature
+   * 字段原样保留，避免降级/再升级时把新功能的配置抹掉。
+   * @param {Object} features
+   * @returns {Object}
+   */
+  ensureFeatures(features) {
+    const source =
+      features && typeof features === "object" && !Array.isArray(features)
+        ? features
+        : {};
+    const progressBar =
+      source.progressBar && typeof source.progressBar === "object"
+        ? source.progressBar
+        : {};
+    const iframeFonts =
+      source.iframeFonts && typeof source.iframeFonts === "object"
+        ? source.iframeFonts
+        : {};
+
+    return {
+      ...source,
+      progressBar: {
+        ...DEFAULT_FEATURES.progressBar,
+        ...progressBar,
+        enabled:
+          typeof progressBar.enabled === "boolean"
+            ? progressBar.enabled
+            : DEFAULT_FEATURES.progressBar.enabled,
+        color:
+          typeof progressBar.color === "string"
+            ? progressBar.color
+            : DEFAULT_FEATURES.progressBar.color,
+      },
+      iframeFonts: {
+        enabled:
+          typeof iframeFonts.enabled === "boolean"
+            ? iframeFonts.enabled
+            : DEFAULT_FEATURES.iframeFonts.enabled,
+      },
+    };
   },
 
   /**
@@ -660,6 +709,7 @@ if (typeof module !== "undefined" && module.exports) {
     DEFAULT_TYPO,
     DEFAULT_SELECTOR_RULES,
     DEFAULT_SELECTORS,
+    DEFAULT_FEATURES,
     DEFAULT_GLOBAL,
     DEFAULT_SETTINGS,
     Storage,

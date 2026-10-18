@@ -20,7 +20,10 @@
     {
       "matches": ["<all_urls>"],
       "js": ["i18n.js", "content.js"],
-      "run_at": "document_start"
+      "run_at": "document_start",
+      "all_frames": true,
+      "match_about_blank": true,
+      "match_origin_as_fallback": true
     }
   ],
   "icons": {

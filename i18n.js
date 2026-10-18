@@ -56,6 +56,17 @@ const I18n = (() => {
       "options.selectors.savedTitle": "Saved",
       "options.selectors.savedBody": "Selectors saved. They apply immediately, no page refresh needed.",
 
+      // ── options：内嵌框架 ──────────────────────────────────
+      "options.frames.title": "Embedded frames",
+      "options.frames.desc":
+        "Comments, videos, documents, and other content are often rendered inside an iframe. This controls whether font replacement reaches inside them.",
+      "options.frames.toggle": "Apply fonts inside iframes",
+      "options.frames.hint":
+        "Off leaves embedded content on its original fonts. Site rules still decide whether the page is styled at all.",
+      "options.frames.saveFailedTitle": "Couldn't save",
+      "options.frames.saveFailedBody":
+        "The switch wasn't saved. Check your sync storage quota and try again.",
+
       // ── options：方案库 ────────────────────────────────────
       "options.schemes.title": "Presets",
       "options.schemes.empty":
@@ -238,6 +249,17 @@ const I18n = (() => {
       "options.selectors.label.exclude": "排除替换",
       "options.selectors.savedTitle": "保存成功",
       "options.selectors.savedBody": "补充选择器已保存，已即时生效，无需刷新页面。",
+
+      // ── options：内嵌框架 ──────────────────────────────────
+      "options.frames.title": "内嵌框架",
+      "options.frames.desc":
+        "页面里的评论、视频、文档等内容常放在 iframe 中。这里决定字体替换是否写进这些内嵌框架。",
+      "options.frames.toggle": "应用到内嵌框架",
+      "options.frames.hint":
+        "关闭后，内嵌内容保持它原本的字体；站点级开关仍然决定整页是否启用替换。",
+      "options.frames.saveFailedTitle": "保存失败",
+      "options.frames.saveFailedBody":
+        "开关状态没有保存成功。请检查同步存储空间后重试。",
 
       // ── options：方案库 ────────────────────────────────────
       "options.schemes.title": "方案库",

@@ -50,6 +50,16 @@
 - 控制中心的「站点管理」列出所有被单独设置过的域名，可逐个移除或一次清空；只是跟随全局设置的站点不会留下记录。
 - 浏览器内置页（`chrome://` 等）不支持站点级设置，弹窗会自动禁用相关控件并回退到全局模式。
 
+#### 内嵌框架（iframe）
+
+页面里的评论、视频、文档等内容常常渲染在 iframe 中。CSS 的字体继承不会跨文档边界，只处理顶层页面时，这些内容会保持原字体。控制中心新增「内嵌框架」开关：
+
+- **开启（默认）**：内容脚本同时进入所有子框架，把同一套字体规则写进 iframe；
+- **关闭**：只处理顶层页面，内嵌内容保持原站字体；
+- 站点级开关与「本站字体」按**顶层页面域名**解析 —— 在某个站点关掉扩展，它内嵌的框架也一起停下。
+
+实现上由 manifest 的 `all_frames` 让脚本进入每个框架，脚本再按开关决定是否写入样式；跨域框架通过 `location.ancestorOrigins`（兜底 `document.referrer`）取顶层域名。
+
 #### 页面拾取（Element Picker）
 
 有些站点的正文容器没有语义化的类名，或者你想把某个角落的元素排除掉 —— 不用读源码，直接在页面上点：
@@ -216,6 +226,16 @@ This is where "replace every font on the page" extensions usually break things: 
   - badge reads **OFF** (blocklist): with the master switch on, that site keeps its **original styling**.
 - The Control Center's "Site rules" lists every domain you have customized, so you can remove them one by one or clear them all. Sites that simply follow the global settings leave no record behind.
 - Browser-internal pages (`chrome://` and friends) do not support per-site settings; the popup disables those controls and falls back to global mode.
+
+#### Embedded frames (iframe)
+
+Comments, videos, documents, and other embedded content usually live inside an iframe. CSS font inheritance does not cross document boundaries, so a top-page-only rule leaves them untouched. The Control Center adds an **Embedded frames** switch:
+
+- **On (default)** — the content script also enters every subframe and writes the same font rules there;
+- **Off** — only the top-level page is styled, and embedded content keeps its original fonts;
+- Site rules and "Site font" resolve against the **top-level page's domain** — turning the extension off on a site also stops the frames inside it.
+
+Under the hood, `all_frames` in the manifest lets the script run in every frame, and the script decides whether to write the stylesheet; cross-origin frames read the top-level domain from `location.ancestorOrigins` (with `document.referrer` as a fallback).
 
 #### Element picker
 

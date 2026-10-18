@@ -269,6 +269,12 @@ function loadData() {
       document.getElementById("selectors-exclude").value =
         selectors.exclude || "";
     }
+
+    // 内嵌框架开关。ensureSettings 已把 features 补齐，老配置读出来就是默认开启。
+    const iframeSwitch = document.getElementById("iframe-fonts-switch");
+    if (iframeSwitch) {
+      iframeSwitch.checked = allSettings.global.features.iframeFonts.enabled;
+    }
   });
 }
 
@@ -612,6 +618,36 @@ function bindGlobalEvents() {
       });
     });
   };
+
+  // 内嵌框架开关：即时保存，不设「保存」按钮。
+  // 写失败时把开关拨回去 —— 只改 UI 不落盘，会让人以为已经生效。
+  const iframeSwitch = document.getElementById("iframe-fonts-switch");
+  if (iframeSwitch) {
+    iframeSwitch.addEventListener("change", async () => {
+      if (!allSettings.global) allSettings.global = {};
+      allSettings.global.features = DataValidator.ensureFeatures(
+        allSettings.global.features,
+      );
+
+      const next = iframeSwitch.checked;
+      allSettings.global.features.iframeFonts.enabled = next;
+
+      const saved = await Storage.set({ settings: allSettings });
+      if (!saved) {
+        allSettings.global.features.iframeFonts.enabled = !next;
+        iframeSwitch.checked = !next;
+        modal.show({
+          title: t("options.frames.saveFailedTitle"),
+          body: t("options.frames.saveFailedBody"),
+          confirmText: t("common.ok"),
+          onConfirm: () => true,
+          singleAction: true,
+        });
+        return;
+      }
+      updateStorageInfo();
+    });
+  }
 
   // ═══ 导出配置 ═══
   document.getElementById("export-config").onclick = () => {
