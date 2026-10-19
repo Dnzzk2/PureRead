@@ -2,7 +2,7 @@
 
 **PureRead 不收集你的任何数据。** 没有账号，没有遥测，没有统计，没有广告。
 
-最后更新：2026-10-14 · 适用于 v1.1.0
+最后更新：2026-10-19 · 适用于 v1.2.0
 
 ---
 
@@ -83,7 +83,7 @@ manifest 中没有 `host_permissions` 字段 —— 扩展不需要常驻的跨�
 
 **PureRead collects none of your data.** No account, no telemetry, no analytics, no ads.
 
-Last updated: 2026-10-14 · Applies to v1.1.0
+Last updated: 2026-10-19 · Applies to v1.2.0
 
 ## 1. What PureRead does not do
 
