@@ -1827,9 +1827,12 @@ function teardownSelectorPicker({ silent = false } = {}) {
   const target = selectorPickerState.target;
 
   document.removeEventListener("mousemove", selectorPickerState.onMouseMove, true);
-  document.removeEventListener("click", selectorPickerState.onClick, true);
+  window.removeEventListener("click", selectorPickerState.onClick, true);
   document.removeEventListener("keydown", selectorPickerState.onKeyDown, true);
   window.removeEventListener("scroll", selectorPickerState.onScroll, true);
+  for (const [type, handler] of selectorPickerState.pointerGuards || []) {
+    window.removeEventListener(type, handler, true);
+  }
   if (selectorPickerState.schemeQuery && selectorPickerState.onSchemeChange) {
     selectorPickerState.schemeQuery.removeEventListener(
       "change",
@@ -2039,6 +2042,34 @@ function startSelectorPicker(target = "standard") {
     }
   };
 
+  // 拾取模式下只拦 click 已经太晚：很多页面的菜单、拖拽、输入框聚焦、
+  // 按钮动作都挂在 pointerdown / mousedown / pointerup 上。这里在 window
+  // 捕获阶段把一整串按下/抬起事件也截住，避免点击拾取时触发页面交互。
+  //
+  // 注意 pointerdown 不 preventDefault：取消它可能连带取消后续的 click，
+  // 拾取器就收不到选择事件了；只阻止传播即可。mousedown 才 preventDefault，
+  // 用来压掉聚焦、文本选择和原生拖拽。
+  const stopPagePointer = (event) => {
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+  };
+  const preventPagePointer = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+  };
+  const pointerGuards = [
+    ["pointerdown", stopPagePointer],
+    ["pointerup", stopPagePointer],
+    ["mouseup", stopPagePointer],
+    ["mousedown", preventPagePointer],
+    ["auxclick", preventPagePointer],
+    ["dragstart", preventPagePointer],
+  ];
+  for (const [type, handler] of pointerGuards) {
+    window.addEventListener(type, handler, true);
+  }
+
   // 拾取器存活期间用户切了系统外观：重上一遍色，再重画浮窗。
   // 两件事必须一起做 —— 只重画浮窗的话选取框会停在旧主题，出现一帧混搭。
   const schemeQuery = pickerSchemeQuery();
@@ -2056,6 +2087,7 @@ function startSelectorPicker(target = "standard") {
     hoveredPick: null,
     hoveredSelector: "",
     hoveredBlocked: false,
+    pointerGuards,
     onMouseMove,
     onClick,
     onKeyDown,
@@ -2065,7 +2097,8 @@ function startSelectorPicker(target = "standard") {
   };
 
   document.addEventListener("mousemove", onMouseMove, true);
-  document.addEventListener("click", onClick, true);
+  // window 捕获阶段比 document 更早，能赶在页面的 document 级 click 前面。
+  window.addEventListener("click", onClick, true);
   document.addEventListener("keydown", onKeyDown, true);
   window.addEventListener("scroll", onScroll, true);
   if (schemeQuery) {
