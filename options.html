@@ -4,8 +4,6 @@
     <meta charset="UTF-8" />
     <title data-i18n="options.title">PureRead - 控制中心</title>
     <style>
-       @import url("https://fontsapi.zeoseven.com/144/main/result.css");
-
       /* ═══════════════════════════════════════════════════════════
          PureRead 控制中心 — 现代简约设计
          ═══════════════════════════════════════════════════════════ */
@@ -58,6 +56,14 @@
         --violet-fg: #7c3aed;
         --slate-bg: #f1f5f9;
         --slate-fg: #475569;
+        --cyan-bg: #cffafe;
+        --cyan-fg: #0e7490;
+        --teal-bg: #ccfbf1;
+        --teal-fg: #0f766e;
+        --orange-bg: #ffedd5;
+        --orange-fg: #c2410c;
+        --stone-bg: #f5f5f4;
+        --stone-fg: #57534e;
 
         --danger-bg: #fef2f2;
         --danger-fg: #dc2626;
@@ -107,7 +113,7 @@
         --dropdown-shadow:
           0 2px 8px rgba(0, 0, 0, 0.06), 0 8px 24px rgba(0, 0, 0, 0.04);
 
-        --font: "LXGW 975 HazyGo SC 500W", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", Roboto, Helvetica, Arial, sans-serif;
       }
 
       @media (prefers-color-scheme: dark) {
@@ -146,6 +152,14 @@
           --violet-fg: #a78bfa;
           --slate-bg: rgba(71, 85, 105, 0.15);
           --slate-fg: #94a3b8;
+          --cyan-bg: rgba(8, 145, 178, 0.18);
+          --cyan-fg: #22d3ee;
+          --teal-bg: rgba(13, 148, 136, 0.18);
+          --teal-fg: #2dd4bf;
+          --orange-bg: rgba(234, 88, 12, 0.18);
+          --orange-fg: #fb923c;
+          --stone-bg: rgba(120, 113, 108, 0.18);
+          --stone-fg: #d6d3d1;
 
           --danger-bg: rgba(220, 38, 38, 0.12);
           --danger-fg: #f87171;
@@ -597,8 +611,23 @@
         background: var(--slate-bg);
         color: var(--slate-fg);
       }
-      /* 界面语言卡专用。六个内容板块已各占一色，这里刻意取中性灰，
-         读起来比那六张轻一档——它是全局偏好，不是又一块内容。 */
+      h2 .icon-wrap.cyan {
+        background: var(--cyan-bg);
+        color: var(--cyan-fg);
+      }
+      h2 .icon-wrap.teal {
+        background: var(--teal-bg);
+        color: var(--teal-fg);
+      }
+      h2 .icon-wrap.orange {
+        background: var(--orange-bg);
+        color: var(--orange-fg);
+      }
+      h2 .icon-wrap.stone {
+        background: var(--stone-bg);
+        color: var(--stone-fg);
+      }
+      /* 预留的中性色，当前九张卡片各用一色，不再有卡片用它。 */
       h2 .icon-wrap.neutral {
         background: var(--surface);
         color: var(--text-light);
@@ -849,6 +878,26 @@
       }
       .btn-danger:hover {
         opacity: 0.85;
+      }
+      .btn-text {
+        background: none;
+        border: 1px solid var(--border);
+        color: var(--text-light);
+        font-size: 12px;
+        padding: 6px 14px;
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        font-family: var(--font);
+        transition: all var(--transition);
+      }
+      .btn-text:hover:not(:disabled) {
+        background: var(--surface);
+        border-color: var(--border-strong);
+        color: var(--text);
+      }
+      .btn-text:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
       }
       .btn-text-danger {
         background: none;
@@ -1354,7 +1403,11 @@
               data-i18n-html="options.selectors.note"
               style="margin-top: -8px; margin-bottom: 0;"
             >
-              支持逗号或换行分隔。排除项写元素本身即可，不需要手动写 <code>::before</code>。
+              支持逗号或换行分隔。排除项写元素本身即可，不需要手动写
+              <code>::before</code>。Shadow DOM 内部默认已自动覆盖；需要单独
+              指定某个组件时用
+              <code>host::part(name)</code>，嵌套 shadow 由拾取器写入
+              <code>outer &gt;&gt;&gt; inner::part(name)</code> 链。
             </p>
 
             <div class="save-area">
@@ -1374,11 +1427,11 @@
             </div>
           </div>
 
-          <!-- 内嵌框架 -->
+          <!-- 内嵌内容：iframe 与 Shadow DOM -->
           <div class="section" style="margin-bottom: 0;">
             <div class="section-header">
               <h2>
-                <span class="icon-wrap neutral">
+                <span class="icon-wrap cyan">
                   <svg
                     viewBox="0 0 24 24"
                     fill="none"
@@ -1391,7 +1444,7 @@
                     <rect x="6" y="7" width="12" height="10" rx="1" />
                   </svg>
                 </span>
-                <span data-i18n="options.frames.title">内嵌框架</span>
+                <span data-i18n="options.frames.title">内嵌内容</span>
               </h2>
             </div>
             <p
@@ -1399,8 +1452,8 @@
               data-i18n="options.frames.desc"
               style="margin-bottom: 16px;"
             >
-              页面里的评论、视频、文档等内容常放在 iframe
-              中。这里决定字体替换是否写进这些内嵌框架。
+              评论、视频、文档常放在 iframe 里，组件则常使用 Shadow
+              DOM。这里决定字体替换是否跟随进这些内嵌内容。
             </p>
             <div class="toggle-row">
               <div class="toggle-copy">
@@ -1425,6 +1478,35 @@
                   id="iframe-fonts-switch"
                   aria-labelledby="iframe-fonts-label"
                   aria-describedby="iframe-fonts-hint"
+                  checked
+                />
+                <span class="slider"></span>
+              </label>
+            </div>
+
+            <div class="toggle-row" style="margin-top: 10px;">
+              <div class="toggle-copy">
+                <label
+                  class="toggle-label"
+                  id="shadow-dom-label"
+                  for="shadow-dom-switch"
+                  data-i18n="options.frames.shadowToggle"
+                  >应用到 Shadow DOM</label
+                >
+                <span
+                  class="toggle-hint"
+                  id="shadow-dom-hint"
+                  data-i18n="options.frames.shadowHint"
+                >
+                  会把同一套字体写进开放的 shadow root，嵌套组件也会跟随；代码编辑器和输入框会自动跳过。
+                </span>
+              </div>
+              <label class="switch">
+                <input
+                  type="checkbox"
+                  id="shadow-dom-switch"
+                  aria-labelledby="shadow-dom-label"
+                  aria-describedby="shadow-dom-hint"
                   checked
                 />
                 <span class="slider"></span>
@@ -1574,7 +1656,7 @@
           <div class="section" style="margin-bottom: 0;">
             <div class="section-header">
               <h2>
-                <span class="icon-wrap neutral">
+                <span class="icon-wrap teal">
                   <svg
                     viewBox="0 0 24 24"
                     fill="none"
@@ -1639,11 +1721,79 @@
             </div>
           </div>
 
+          <!-- 界面字体 -->
+          <div class="section" style="margin-bottom: 0;">
+            <div class="section-header">
+              <h2>
+                <span class="icon-wrap orange">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <polyline points="4 7 4 4 20 4 20 7" />
+                    <line x1="9" y1="20" x2="15" y2="20" />
+                    <line x1="12" y1="4" x2="12" y2="20" />
+                  </svg>
+                </span>
+                <span id="ui-font-heading" data-i18n="options.uiFont.title">界面字体</span>
+              </h2>
+              <button
+                id="reset-ui-font"
+                class="btn-text"
+                data-i18n="options.uiFont.reset"
+              >
+                恢复默认
+              </button>
+            </div>
+            <p
+              class="desc"
+              data-i18n="options.uiFont.desc"
+              style="margin-bottom: 14px;"
+            >
+              只影响扩展自己的弹窗、控制中心和拾取浮层，不影响网页字体替换。默认使用系统字体，不加载任何远程字体。
+            </p>
+            <div class="lang-dropdown" id="ui-font-dropdown">
+              <button
+                type="button"
+                id="ui-font-trigger"
+                class="lang-trigger"
+                aria-haspopup="listbox"
+                aria-expanded="false"
+                aria-labelledby="ui-font-heading ui-font-value"
+              >
+                <span id="ui-font-value">系统默认</span>
+                <span class="chevron-icon" aria-hidden="true">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="3"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </span>
+              </button>
+              <!-- 和语言下拉一样在 init 时挪到 <body>，避免被卡片的 overflow 裁掉。 -->
+              <div
+                class="lang-dropdown-list"
+                id="ui-font-list"
+                role="listbox"
+                aria-labelledby="ui-font-heading"
+              ></div>
+            </div>
+          </div>
+
           <!-- 更新提示 -->
           <div class="section" style="margin-bottom: 0;">
              <div class="section-header">
               <h2>
-                <span class="icon-wrap slate">
+                <span class="icon-wrap stone">
                   <svg
                     viewBox="0 0 24 24"
                     fill="none"

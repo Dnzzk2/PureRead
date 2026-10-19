@@ -2,6 +2,7 @@
 let allSchemes = [];
 let allSettings = {};
 let allFonts = []; // 系统字体列表
+let uiFontPref = { mode: "system", family: "" };
 // 检测到的新版本 { version, url }，没有就是 null。
 // 存下来是因为界面语言一换，localizePage() 会把按钮文案冲回默认值，
 // 得靠这个再画一遍，见 applyUpdateState()。
@@ -59,9 +60,7 @@ function closeLocaleList() {
 
 // 把 fixed 定位的列表摆到触发器正下方。放不下就翻到上方。
 // 列表本身挂在 <body> 上，所以这里一律用视口坐标（getBoundingClientRect）。
-function placeLocaleList() {
-  const list = localeList();
-  const trigger = localeTrigger();
+function placeDropdownList(trigger, list) {
   if (!list || !trigger || list.style.display !== "block") return;
 
   const r = trigger.getBoundingClientRect();
@@ -76,6 +75,10 @@ function placeLocaleList() {
     !fitsBelow && fitsAbove
       ? `${Math.round(r.top - gap - listH)}px`
       : `${Math.round(r.bottom + gap)}px`;
+}
+
+function placeLocaleList() {
+  placeDropdownList(localeTrigger(), localeList());
 }
 
 function openLocaleList() {
@@ -94,6 +97,8 @@ function applyLocale() {
   document.documentElement.lang = I18n.localeTag;
   I18n.localizePage();
   syncLocaleTrigger();
+  syncUiFontControls();
+  if (uiFontList()?.style.display === "block") renderUiFontList();
 }
 
 // 语言一变，动态渲染出来的行（方案名、站点徽章、存储占用条）都得重画一遍，
@@ -126,6 +131,7 @@ function bindLocaleSwitcher() {
   };
 
   trigger.addEventListener("click", () => {
+    closeUiFontList();
     if (list.style.display === "block") {
       closeLocaleList();
       return;
@@ -175,9 +181,18 @@ function bindLocaleSwitcher() {
   window.addEventListener("scroll", placeLocaleList, { passive: true });
   window.addEventListener("resize", placeLocaleList);
 
-  // 另一处界面（popup）改了语言时跟上。
+  // 另一处界面（popup / 另一个设置页）改了语言或界面字体时跟上。
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area !== "local" || !changes.uiLocale) return;
+    if (area !== "local") return;
+
+    if (changes.uiFont) {
+      uiFontPref = UiFont.normalize(changes.uiFont.newValue);
+      UiFont.apply(uiFontPref);
+      syncUiFontControls();
+      if (uiFontList()?.style.display === "block") renderUiFontList();
+    }
+
+    if (!changes.uiLocale) return;
     if (skipNextLocaleSync) {
       skipNextLocaleSync = false;
       return;
@@ -188,13 +203,208 @@ function bindLocaleSwitcher() {
   });
 }
 
+// ═══ 界面字体 ═══
+
+const uiFontTrigger = () => document.getElementById("ui-font-trigger");
+const uiFontList = () => document.getElementById("ui-font-list");
+const uiFontItems = () =>
+  Array.from(document.querySelectorAll("#ui-font-list .dropdown-item"));
+
+function uiFontLabel() {
+  return uiFontPref.mode === "custom"
+    ? uiFontPref.family
+    : t("options.uiFont.system");
+}
+
+function syncUiFontControls() {
+  const value = document.getElementById("ui-font-value");
+  if (value) value.textContent = uiFontLabel();
+  const resetButton = document.getElementById("reset-ui-font");
+  if (resetButton) resetButton.disabled = uiFontPref.mode === "system";
+}
+
+function uiFontChoices() {
+  const choices = [{ value: "__system__", label: t("options.uiFont.system") }];
+  const fonts = allFonts.filter((font) => !FontPreview.isSymbolFont(font));
+  if (uiFontPref.mode === "custom" && !fonts.includes(uiFontPref.family)) {
+    fonts.unshift(uiFontPref.family);
+  }
+  for (const font of fonts) choices.push({ value: font, label: font });
+  return choices;
+}
+
+function renderUiFontList() {
+  const list = uiFontList();
+  if (!list) return;
+
+  const fragment = document.createDocumentFragment();
+  for (const choice of uiFontChoices()) {
+    const item = document.createElement("div");
+    item.className = "dropdown-item";
+    item.dataset.value = choice.value;
+    item.textContent = choice.label;
+    item.setAttribute("role", "option");
+    item.tabIndex = -1;
+    const active =
+      (uiFontPref.mode === "system" && choice.value === "__system__") ||
+      (uiFontPref.mode === "custom" && choice.value === uiFontPref.family);
+    if (active) item.classList.add("active");
+    fragment.appendChild(item);
+  }
+  list.replaceChildren(fragment);
+}
+
+function placeUiFontList() {
+  placeDropdownList(uiFontTrigger(), uiFontList());
+}
+
+function openUiFontList() {
+  const trigger = uiFontTrigger();
+  const list = uiFontList();
+  if (!trigger || !list) return;
+
+  renderUiFontList();
+  list.style.display = "block";
+  trigger.setAttribute("aria-expanded", "true");
+  placeUiFontList();
+
+  const items = uiFontItems();
+  const active = items.find((item) => item.classList.contains("active"));
+  (active || items[0])?.focus();
+}
+
+function closeUiFontList() {
+  const list = uiFontList();
+  const trigger = uiFontTrigger();
+  if (!list || list.style.display !== "block") return;
+  list.style.display = "none";
+  trigger?.setAttribute("aria-expanded", "false");
+}
+
+async function chooseUiFont(value) {
+  closeUiFontList();
+  uiFontTrigger()?.focus();
+
+  const family = value === "__system__" ? "" : value;
+  const next = family
+    ? { mode: "custom", family }
+    : { mode: "system", family: "" };
+
+  if (
+    uiFontPref.mode === next.mode &&
+    (next.mode === "system" || uiFontPref.family === next.family)
+  ) {
+    return;
+  }
+
+  const saved = await UiFont.save(next);
+  if (!saved) {
+    modal.show({
+      title: t("options.uiFont.saveFailedTitle"),
+      body: t("options.uiFont.saveFailedBody"),
+      confirmText: t("common.ok"),
+      onConfirm: () => true,
+      singleAction: true,
+    });
+    return;
+  }
+
+  uiFontPref = UiFont.normalize(next);
+  UiFont.apply(uiFontPref);
+  syncUiFontControls();
+}
+
+function bindUiFont() {
+  const trigger = uiFontTrigger();
+  const list = uiFontList();
+  if (!trigger || !list) return;
+
+  // 和语言下拉一样挂到 body，避开卡片的 overflow / transform 裁剪。
+  document.body.appendChild(list);
+  syncUiFontControls();
+
+  document
+    .getElementById("reset-ui-font")
+    ?.addEventListener("click", () => chooseUiFont("__system__"));
+
+  let typeBuffer = "";
+  let typeTimer = null;
+
+  trigger.addEventListener("click", () => {
+    closeLocaleList();
+    if (list.style.display === "block") {
+      closeUiFontList();
+      return;
+    }
+    openUiFontList();
+  });
+
+  list.addEventListener("click", (e) => {
+    const item = e.target.closest(".dropdown-item");
+    if (item) chooseUiFont(item.dataset.value);
+  });
+
+  list.addEventListener("keydown", (e) => {
+    const items = uiFontItems();
+    const at = items.indexOf(document.activeElement);
+
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      const step = e.key === "ArrowDown" ? 1 : -1;
+      items[(at + step + items.length) % items.length]?.focus();
+    } else if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      if (at >= 0) chooseUiFont(items[at].dataset.value);
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      closeUiFontList();
+      trigger.focus();
+    } else if (e.key === "Tab") {
+      closeUiFontList();
+    } else if (
+      e.key.length === 1 &&
+      !e.ctrlKey &&
+      !e.metaKey &&
+      !e.altKey
+    ) {
+      // 字体很多时用首字母快速定位，补回原生 select 的 typeahead。
+      e.preventDefault();
+      typeBuffer += e.key.toLowerCase();
+      clearTimeout(typeTimer);
+      typeTimer = setTimeout(() => {
+        typeBuffer = "";
+      }, 500);
+      const match = items.find((item) =>
+        item.textContent.toLowerCase().startsWith(typeBuffer),
+      );
+      match?.focus();
+    }
+  });
+
+  // 点组件之外收起。列表挂在 body 上，所以单独判断。
+  document.addEventListener("click", (e) => {
+    if (
+      !e.target.closest("#ui-font-dropdown") &&
+      !e.target.closest("#ui-font-list")
+    ) {
+      closeUiFontList();
+    }
+  });
+
+  window.addEventListener("scroll", placeUiFontList, { passive: true });
+  window.addEventListener("resize", placeUiFontList);
+}
+
 async function init() {
+  uiFontPref = await UiFont.loadAndApply();
+
   // 先按浏览器语言同步套一遍，英文界面就不会闪一下中文；
   // 落盘的偏好是异步读的，读到后由下面的 applyLocale 覆盖。
   applyLocale();
 
   bindGlobalEvents();
   bindLocaleSwitcher();
+  bindUiFont();
 
   await I18n.ready;
   applyLocale();
@@ -231,6 +441,7 @@ async function loadSystemFonts() {
       chrome.fontSettings.getFontList((fonts) => {
         allFonts = [...new Set(fonts.map((f) => f.fontId))].sort();
         chrome.storage.local.set({ fontCache: allFonts });
+        if (uiFontList()?.style.display === "block") renderUiFontList();
       });
     }
   } catch (e) {
@@ -270,10 +481,14 @@ function loadData() {
         selectors.exclude || "";
     }
 
-    // 内嵌框架开关。ensureSettings 已把 features 补齐，老配置读出来就是默认开启。
-    const iframeSwitch = document.getElementById("iframe-fonts-switch");
-    if (iframeSwitch) {
-      iframeSwitch.checked = allSettings.global.features.iframeFonts.enabled;
+    // 内嵌内容开关。ensureSettings 已把 features 补齐，老配置读出来就是默认开启。
+    const featureSwitches = [
+      ["iframe-fonts-switch", "iframeFonts"],
+      ["shadow-dom-switch", "shadowDom"],
+    ];
+    for (const [id, key] of featureSwitches) {
+      const input = document.getElementById(id);
+      if (input) input.checked = allSettings.global.features[key].enabled;
     }
   });
 }
@@ -619,23 +834,25 @@ function bindGlobalEvents() {
     });
   };
 
-  // 内嵌框架开关：即时保存，不设「保存」按钮。
+  // 内嵌内容开关：即时保存，不设「保存」按钮。
   // 写失败时把开关拨回去 —— 只改 UI 不落盘，会让人以为已经生效。
-  const iframeSwitch = document.getElementById("iframe-fonts-switch");
-  if (iframeSwitch) {
-    iframeSwitch.addEventListener("change", async () => {
+  const bindFeatureSwitch = (id, key) => {
+    const input = document.getElementById(id);
+    if (!input) return;
+
+    input.addEventListener("change", async () => {
       if (!allSettings.global) allSettings.global = {};
       allSettings.global.features = DataValidator.ensureFeatures(
         allSettings.global.features,
       );
 
-      const next = iframeSwitch.checked;
-      allSettings.global.features.iframeFonts.enabled = next;
+      const next = input.checked;
+      allSettings.global.features[key].enabled = next;
 
       const saved = await Storage.set({ settings: allSettings });
       if (!saved) {
-        allSettings.global.features.iframeFonts.enabled = !next;
-        iframeSwitch.checked = !next;
+        allSettings.global.features[key].enabled = !next;
+        input.checked = !next;
         modal.show({
           title: t("options.frames.saveFailedTitle"),
           body: t("options.frames.saveFailedBody"),
@@ -647,7 +864,10 @@ function bindGlobalEvents() {
       }
       updateStorageInfo();
     });
-  }
+  };
+
+  bindFeatureSwitch("iframe-fonts-switch", "iframeFonts");
+  bindFeatureSwitch("shadow-dom-switch", "shadowDom");
 
   // ═══ 导出配置 ═══
   document.getElementById("export-config").onclick = () => {

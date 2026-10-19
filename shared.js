@@ -42,6 +42,11 @@ const DEFAULT_FEATURES = {
   iframeFonts: {
     enabled: true,
   },
+  // 是否把同一套字体规则注入开放 shadow root。普通 CSS 的选择器跨不过
+  // shadow 边界，只有把样式写进每个 root 里，嵌套组件才会跟随全局字体。
+  shadowDom: {
+    enabled: true,
+  },
   // focusMode 已改为站点级配置，存储在 sites[domain].focusMode
   // 保留此字段仅用于向后兼容
 };
@@ -176,6 +181,59 @@ const Storage = {
 };
 
 // ═══════════════════════════════════════════════════════════
+// 界面字体（仅扩展自己的 popup / options / picker）
+// ═══════════════════════════════════════════════════════════
+
+const UI_FONT_STORAGE_KEY = "uiFont";
+const UI_FONT_SYSTEM_STACK =
+  '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", Roboto, Helvetica, Arial, sans-serif';
+
+const UiFont = {
+  SYSTEM_STACK: UI_FONT_SYSTEM_STACK,
+
+  normalize(value) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      return { mode: "system", family: "" };
+    }
+    const family = typeof value.family === "string" ? value.family.trim() : "";
+    return value.mode === "custom" && family
+      ? { mode: "custom", family }
+      : { mode: "system", family: "" };
+  },
+
+  cssValue(value) {
+    const pref = this.normalize(value);
+    if (pref.mode !== "custom") return UI_FONT_SYSTEM_STACK;
+    const escaped = pref.family.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+    return `"${escaped}", ${UI_FONT_SYSTEM_STACK}`;
+  },
+
+  // 写 --font 而不是直接改 body：popup / options 的控件、预览都引用这个变量。
+  apply(value) {
+    const cssValue = this.cssValue(value);
+    document.documentElement.style.setProperty("--font", cssValue);
+    return cssValue;
+  },
+
+  async load() {
+    const stored = await Storage.getLocal([UI_FONT_STORAGE_KEY]);
+    return this.normalize(stored[UI_FONT_STORAGE_KEY]);
+  },
+
+  async loadAndApply() {
+    const pref = await this.load();
+    this.apply(pref);
+    return pref;
+  },
+
+  async save(value) {
+    return Storage.setLocal({
+      [UI_FONT_STORAGE_KEY]: this.normalize(value),
+    });
+  },
+};
+
+// ═══════════════════════════════════════════════════════════
 // 数据校验与修复工具
 // ═══════════════════════════════════════════════════════════
 
@@ -238,6 +296,10 @@ const DataValidator = {
       source.iframeFonts && typeof source.iframeFonts === "object"
         ? source.iframeFonts
         : {};
+    const shadowDom =
+      source.shadowDom && typeof source.shadowDom === "object"
+        ? source.shadowDom
+        : {};
 
     return {
       ...source,
@@ -258,6 +320,12 @@ const DataValidator = {
           typeof iframeFonts.enabled === "boolean"
             ? iframeFonts.enabled
             : DEFAULT_FEATURES.iframeFonts.enabled,
+      },
+      shadowDom: {
+        enabled:
+          typeof shadowDom.enabled === "boolean"
+            ? shadowDom.enabled
+            : DEFAULT_FEATURES.shadowDom.enabled,
       },
     };
   },
@@ -713,6 +781,9 @@ if (typeof module !== "undefined" && module.exports) {
     DEFAULT_GLOBAL,
     DEFAULT_SETTINGS,
     Storage,
+    UiFont,
+    UI_FONT_STORAGE_KEY,
+    UI_FONT_SYSTEM_STACK,
     DataValidator,
     FontPreview,
     VirtualList,

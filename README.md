@@ -52,13 +52,38 @@
 
 #### 内嵌框架（iframe）
 
-页面里的评论、视频、文档等内容常常渲染在 iframe 中。CSS 的字体继承不会跨文档边界，只处理顶层页面时，这些内容会保持原字体。控制中心新增「内嵌框架」开关：
+页面里的评论、视频、文档等内容常常渲染在 iframe 中。CSS 的字体继承不会跨文档边界，只处理顶层页面时，这些内容会保持原字体。控制中心的「内嵌内容 → 应用到内嵌框架」开关：
 
 - **开启（默认）**：内容脚本同时进入所有子框架，把同一套字体规则写进 iframe；
 - **关闭**：只处理顶层页面，内嵌内容保持原站字体；
 - 站点级开关与「本站字体」按**顶层页面域名**解析 —— 在某个站点关掉扩展，它内嵌的框架也一起停下。
 
 实现上由 manifest 的 `all_frames` 让脚本进入每个框架，脚本再按开关决定是否写入样式；跨域框架通过 `location.ancestorOrigins`（兜底 `document.referrer`）取顶层域名。
+
+#### Shadow DOM 组件
+
+组件把内部节点放在 shadow root 里时，普通 CSS 选择器跨不过边界。现在默认会把同一套字体规则**递归注入每一个开放 shadow root**，所以不需要为每个嵌套组件单独写额外匹配：
+
+- **开启（默认）**：嵌套组件里的文字、按钮、tab 等都会跟随全局 / 本站字体；代码编辑器（CodeMirror、Monaco、Ace、xterm 等）自动使用「代码 / 等宽」字体，`input` / `textarea` / `select` 跟随正文字体；
+- **关闭**：只处理普通 DOM，shadow root 内部保持组件自己的字体；
+- 拾取器仍然可以为个别组件生成 `host::part(name)` 或嵌套 `outer >>> inner::part(name)` 链，用来做例外；
+- 只支持开放 shadow root；closed root 和完全没有暴露 `part` 的组件无法从页面 CSS 命中；
+- 页面加载后才挂载的组件会由 `MutationObserver` 监听新节点，并在 250ms / 800ms / 2s / 5s 补扫；更晚出现时重新应用一次设置即可。
+
+开关位置：控制中心「内嵌内容 → 应用到 Shadow DOM」。
+
+#### 代码编辑器识别
+
+`<pre>` / `<code>` 只是基础。为了覆盖 SPA 里的编辑器，会按以下线索推断，并把它们（含子树）交给「代码 / 等宽」字体：
+
+- CodeMirror 5/6：`.CodeMirror`、`.cm-editor`、`[class*="codemirror" i]`；
+- Monaco：`.monaco-editor` / `[class*="monaco-editor" i]`；
+- Ace：`.ace_editor` / `[class*="ace_editor" i]`；
+- highlight.js、终端：`.hljs`、`.xterm`、`.terminal`；
+- `contenteditable` 且 class / id 含 `code` / `editor`；带同样命名的 `textarea`；
+- `[data-language]`、`code-block`、`codeblock`、`source-code`、`code-editor` 等常见命名。
+
+编辑器只改 `font-family`，**不强制行高**，避免压坏光标和对齐；`<pre>` / `<code>` 仍按代码块规则固定 `line-height: 1.4`。输入框 / `textarea` / `select` 现在不再保留原生字体，而是跟随正文字体。
 
 #### 页面拾取（Element Picker）
 
@@ -84,10 +109,26 @@
 
 控制中心的「额外匹配与排除」提供四个文本框（标准 / 代码·等宽 / 数学公式 / 排除替换），支持逗号或换行分隔，保存后立即对所有标签页生效，无需刷新页面。适合需要精确书写 `[class*="…"]` 这类规则的时候。
 
+#### Shadow DOM 与 `::part`
+
+默认的 shadow root 注入已经会自动覆盖组件内部，下面这些是「需要给某个组件单独指定字体 / 排除」时的例外用法。普通 CSS 选择器跨不过 shadow 边界，`body *` 和普通额外匹配只能命中宿主元素，组件内部仍使用它自己的字体。
+
+- 页面拾取器会读取事件的 `composedPath()`；如果命中的内部节点暴露了 `part`，就生成 `宿主选择器::part(name)`（例如 `mdn-button::part(label)`），写入额外匹配后可以真正改变组件内部字体；
+- 如果 part 外面还套着没有用 `exportparts` 转发它的 shadow root，拾取器会生成 `外层宿主 >>> 内层宿主::part(name)` 链；应用时逐层进入 shadow root，直接把字体写到最内层元素。只有开放 shadow root 内部没有暴露 `part` 时才会提示无法命中；
+- 排除项会先撤掉扩展样式，读取页面原字体，再用内联 `!important` 把被排除元素（或其 `::part`）钉回原样。这样嵌套元素不会因为祖先被换字体而「排除不掉」；`DOMContentLoaded` 后会重新读取一次，避免读到尚未加载的页面样式表。
+
 #### 界面语言
 
 - **跟随浏览器 / 简体中文 / English** 三选一，在控制中心切换；
 - 偏好存放在 `chrome.storage.local`（不随账号同步），切换**即时生效**于弹窗、控制中心，以及页面上的拾取浮层。
+
+#### 界面字体
+
+- 默认使用**系统字体**，不加载任何远程字体；控制中心可选本机已安装字体；
+- 标题旁的「恢复默认」一键回到系统字体，已经是系统字体时按钮置灰；
+- 只影响扩展自己的 popup / 控制中心 / 拾取浮层，不影响网页字体替换；
+- 偏好存放在 `chrome.storage.local`（设备级，不随账号同步）；本机没有该字体时自动回退到系统字体栈；
+- 符号字体（Webdings 等）不会出现在列表里，避免界面变成乱码。
 
 #### 更新提示
 
@@ -172,13 +213,13 @@ manifest 中**没有** `host_permissions`。内容脚本按 `<all_urls>` 注入 
 
 ### 隐私
 
-**PureRead 不收集任何数据** —— 没有账号、没有埋点、没有广告。字体设置存在浏览器自带的存储里，页面内容不出浏览器；扩展只发两个只读请求：向 GitHub 读取最新版本号（用于更新提示），向 [zeoseven](https://fonts.zeoseven.com/) 获取扩展界面所用的字体（普通网页上只有你主动拾取元素后才会加载）。
+**PureRead 不收集任何数据** —— 没有账号、没有埋点、没有广告。字体设置存在浏览器自带的存储里，页面内容不出浏览器；扩展只发一个只读请求：向 GitHub 读取最新版本号（用于更新提示）。界面字体只使用系统字体或本机已安装的字体，不加载任何远程字体。
 
 完整说明见 **[PRIVACY.md](./PRIVACY.md)**。
 
 ### 反馈与致谢
 
-发现问题或有功能建议，欢迎到 [Issues](https://github.com/Dnzzk2/PureRead/issues) 提出。感谢 [Linux.do](https://linux.do/) 社区的支持与讨论，以及 [zeoseven](https://fonts.zeoseven.com/) 提供的界面字体服务。
+发现问题或有功能建议，欢迎到 [Issues](https://github.com/Dnzzk2/PureRead/issues) 提出。感谢 [Linux.do](https://linux.do/) 社区的支持与讨论。
 
 ### 开源协议
 
@@ -229,13 +270,38 @@ This is where "replace every font on the page" extensions usually break things: 
 
 #### Embedded frames (iframe)
 
-Comments, videos, documents, and other embedded content usually live inside an iframe. CSS font inheritance does not cross document boundaries, so a top-page-only rule leaves them untouched. The Control Center adds an **Embedded frames** switch:
+Comments, videos, documents, and other embedded content usually live inside an iframe. CSS font inheritance does not cross document boundaries, so a top-page-only rule leaves them untouched. In the Control Center, **Embedded content → Apply fonts inside iframes**:
 
 - **On (default)** — the content script also enters every subframe and writes the same font rules there;
 - **Off** — only the top-level page is styled, and embedded content keeps its original fonts;
 - Site rules and "Site font" resolve against the **top-level page's domain** — turning the extension off on a site also stops the frames inside it.
 
 Under the hood, `all_frames` in the manifest lets the script run in every frame, and the script decides whether to write the stylesheet; cross-origin frames read the top-level domain from `location.ancestorOrigins` (with `document.referrer` as a fallback).
+
+#### Shadow DOM components
+
+When a component keeps its internals in a shadow root, ordinary CSS selectors cannot cross the boundary. By default the extension now **injects the same font rules into every open shadow root, recursively**, so you don't need an extra-match rule for each nested component:
+
+- **On (default)** — text, buttons, tabs, and other content inside nested components follow the global / site font; code editors (CodeMirror, Monaco, Ace, xterm, …) use the code/mono font, while `input` / `textarea` / `select` follow the body font;
+- **Off** — only regular DOM is styled, and shadow internals keep the component's own fonts;
+- The picker can still generate `host::part(name)` or a nested `outer >>> inner::part(name)` chain for individual exceptions;
+- Only open shadow roots are supported; closed roots and components with no exposed `part` remain unreachable from page CSS;
+- Components mounted after page load are picked up by a `MutationObserver` plus follow-up scans at 250ms / 800ms / 2s / 5s; anything later needs a settings re-apply.
+
+Switch location: **Embedded content → Apply fonts inside Shadow DOM**.
+
+#### Code editor detection
+
+`<pre>` / `<code>` is only the baseline. To cover editors in SPAs, these clues are detected and their whole subtree is handed to the code/mono font:
+
+- CodeMirror 5/6: `.CodeMirror`, `.cm-editor`, `[class*="codemirror" i]`;
+- Monaco: `.monaco-editor` / `[class*="monaco-editor" i]`;
+- Ace: `.ace_editor` / `[class*="ace_editor" i]`;
+- highlight.js and terminals: `.hljs`, `.xterm`, `.terminal`;
+- `contenteditable` whose class / id contains `code` or `editor`; the same on `textarea`;
+- common names such as `[data-language]`, `code-block`, `codeblock`, `source-code`, `code-editor`.
+
+Editors only get `font-family`; their line height is left alone so cursors and alignment stay intact. `<pre>` / `<code>` still get `line-height: 1.4`. Inputs / `textarea` / `select` no longer keep their native font — they follow the body font.
 
 #### Element picker
 
@@ -261,10 +327,26 @@ Selectors are assembled from the element's `id`, classes, and `:nth-of-type()` (
 
 The Control Center's "Extra matching & exclusion" section offers four text fields (Standard / Code · monospace / Math / Exclude). Separate entries with commas or newlines. Saving applies to every tab immediately, with no page reload. This is the place for precise rules like `[class*="…"]`.
 
+#### Shadow DOM and `::part`
+
+The default shadow-root injection already covers component internals; the rest of this section is for exceptions where one component needs its own font or an exclusion. Ordinary CSS selectors cannot cross that boundary, so `body *` and normal extra matches only hit the host element while the component keeps its own font.
+
+- The picker reads the event's `composedPath()`; when the hit node exposes a `part`, it generates `host::part(name)` (for example `mdn-button::part(label)`). Adding that to an extra-match field really changes the component's internals;
+- If an outer shadow root doesn't forward the part with `exportparts`, the picker writes an `outer host >>> inner host::part(name)` chain instead; applying it walks into each open shadow root and writes the font onto the innermost element. Only a shadow root with no exposed `part` at all is reported as unreachable;
+- Exclusions now remove the extension's stylesheet, read the page's original font, and pin it back with an inline `!important` on the excluded element (or `::part`). That fixes nested elements that used to keep inheriting the user font from a styled ancestor. The originals are re-read at `DOMContentLoaded` so the page's own stylesheets are in effect.
+
 #### Interface language
 
 - **Follow browser / 简体中文 / English**, switchable in the Control Center;
 - The preference lives in `chrome.storage.local` (it does not sync with your account), and switching takes effect **immediately** in the popup, the Control Center, and the on-page picker overlay.
+
+#### Interface font
+
+- Defaults to the **system font**; no remote font is loaded. The Control Center can switch to any locally installed font;
+- The **Reset to default** button next to the heading returns to the system font and is disabled while the default is active;
+- Affects only the extension's own popup, Control Center, and picker overlay — never the fonts replaced on web pages;
+- The preference lives in `chrome.storage.local` (device-level, not synced); if the chosen font is missing, it falls back to the system stack;
+- Symbol fonts (Webdings, etc.) are filtered out of the list so the interface can't turn into glyph soup.
 
 #### Update notices
 
@@ -349,13 +431,13 @@ The manifest declares **no** `host_permissions`. A content script is injected on
 
 ### Privacy
 
-**PureRead collects none of your data** — no account, no telemetry, no ads. Your font settings live in your browser's own storage, and page content never leaves the browser. The extension makes exactly two read-only requests: one to GitHub for the latest version number (for update notices), and one to [zeoseven](https://fonts.zeoseven.com/) for the typeface used by the extension's own interface (on ordinary pages this loads only after you start picking an element).
+**PureRead collects none of your data** — no account, no telemetry, no ads. Your font settings live in your browser's own storage, and page content never leaves the browser. The extension makes exactly one read-only request: to GitHub for the latest version number (for update notices). Its own interface uses the system font or a locally installed font only; no remote font is loaded.
 
 See **[PRIVACY.md](./PRIVACY.md)** for the full policy.
 
 ### Feedback and credits
 
-Bug reports and feature requests are welcome in [Issues](https://github.com/Dnzzk2/PureRead/issues). Thanks to the [Linux.do](https://linux.do/) community for the support and discussion, and to [zeoseven](https://fonts.zeoseven.com/) for serving the interface typeface.
+Bug reports and feature requests are welcome in [Issues](https://github.com/Dnzzk2/PureRead/issues). Thanks to the [Linux.do](https://linux.do/) community for the support and discussion.
 
 ### License
 

@@ -21,6 +21,7 @@ if (IS_TOP_FRAME) I18n.init();
 // 子框架缺这个字段时按「开启」处理。与 shared.js 的
 // DEFAULT_FEATURES.iframeFonts.enabled 必须保持一致。
 const DEFAULT_IFRAME_FONTS = true;
+const DEFAULT_SHADOW_DOM = true;
 
 // 子框架没有「用户地址栏里那个站点」的概念。站点级开关与「本站字体」都按
 // 顶层页面解析 —— 在 example.com 上关掉扩展，它内嵌的 iframe 也应一起停下。
@@ -53,6 +54,43 @@ function iframeFontsEnabled(settings) {
   return typeof enabled === "boolean" ? enabled : DEFAULT_IFRAME_FONTS;
 }
 
+function shadowDomEnabled(settings) {
+  const enabled = settings?.global?.features?.shadowDom?.enabled;
+  return typeof enabled === "boolean" ? enabled : DEFAULT_SHADOW_DOM;
+}
+
+// 内存中的设置快照，用于对比减少重绘
+let currentSettingsStr = "";
+// 最近一次生效的设置。排除项需要等页面样式表就绪后重新读一次原字体，
+// 这个快照就是那时重新 apply 的输入。
+let latestSettings = null;
+
+// 排除项真正恢复页面原字体所需的记录。
+//
+// 只靠 :not(...) 只能让规则不命中被排除的元素，挡不住「祖先已经被换成
+// 用户字体，子元素继承下来」—— 这正是嵌套元素排除不掉的根因。所以这里在
+// 撤掉自己的 <style> 之后，用 getComputedStyle 读一次页面原来的字体，
+// 再以 inline !important 钉回被排除的根元素；子树仍由 :not(排除项 *)
+// 挡住，不会被子元素自己的规则误伤。改动设置时先撤销钉回再重新读取。
+const excludedFontElements = new Set();
+const excludedFontPrevious = new WeakMap();
+const MAX_EXCLUDED_FONT_RESETS = 1000;
+let excludeRefreshHookInstalled = false;
+
+// 嵌套 shadow 链的额外匹配通过 inline style 落到最内层元素上；记录旧值，
+// 关闭/改设置时原样还回去。
+const chainFontElements = new Set();
+const chainFontPrevious = new WeakMap();
+
+// 每个开放 shadow root 里注入的字体样式表。root 被移除后这里的强引用
+// 仍然存在，所以 applyShadowStyles 会顺手清掉已不在文档里的条目。
+const shadowStyleMap = new Map();
+let shadowRefreshTimers = [];
+let latestShadowCss = "";
+let shadowObserver = null;
+let observedShadowRoots = new WeakSet();
+let shadowMutationTimer = null;
+
 chrome.storage.sync.get(["settings"], (result) => {
   if (result.settings) {
     updateContentStyles(result.settings);
@@ -67,9 +105,8 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
   if (selectorPickerState) {
     updatePickerTip(
       selectorPickerState.hoveredElement,
-      selectorPickerState.hoveredElement
-        ? buildSelectorPath(selectorPickerState.hoveredElement)
-        : "",
+      selectorPickerState.hoveredSelector,
+      selectorPickerState.hoveredBlocked,
     );
   }
 });
@@ -91,8 +128,437 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
   }
 });
 
-// 内存中的设置快照，用于对比减少重绘
-let currentSettingsStr = "";
+function isPartSelector(selector) {
+  return String(selector).includes("::part(");
+}
+
+// 嵌套 shadow 的定向路径。纯 CSS 的 ::part() 只能跨一层，所以这里用
+// 「外层宿主 >>> 内层宿主::part(name)」把不可达的链路显式记下来，
+// 应用时逐层进入 shadow root 再写字体。
+function isShadowChainSelector(selector) {
+  return String(selector).includes(">>>");
+}
+
+// host::part(name) 不能直接交给 querySelectorAll；拆成宿主选择器，
+// 再到开放 shadow root 里按 part 属性找元素。
+function queryPartElements(selector) {
+  const match = String(selector).match(/^(.*)::part\(([^)]+)\)$/);
+  if (!match) return [];
+
+  const hostSelector = match[1].trim();
+  const partName = match[2].trim().split(/\s+/)[0];
+  if (!hostSelector || !partName) return [];
+
+  const escapedName = partName.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  const elements = [];
+  let hosts;
+  try {
+    hosts = document.querySelectorAll(hostSelector);
+  } catch (_) {
+    return [];
+  }
+
+  for (const host of hosts) {
+    const shadowRoot = host.shadowRoot;
+    if (!shadowRoot) continue;
+    try {
+      shadowRoot
+        .querySelectorAll(`[part~="${escapedName}"]`)
+        .forEach((element) => elements.push(element));
+    } catch (_) {}
+  }
+  return elements;
+}
+
+// 从最内层 part 往外拼：内层宿主选择器 + ::part(name)，再逐层 prepend
+// 外层宿主在各自父树里的选择器。只有两层以上才需要链；单层仍然用 CSS
+// 的 host::part(name) 就够了。
+function buildShadowChain(partName, partRoot) {
+  const segments = [];
+  let currentRoot = partRoot;
+  let innermost = true;
+
+  while (currentRoot && currentRoot.nodeType === 11 && currentRoot.host) {
+    const host = currentRoot.host;
+    const parentRoot = host.getRootNode();
+    const hostSelector = buildSelectorPath(host, parentRoot);
+    if (!hostSelector) return "";
+
+    segments.unshift(
+      innermost ? `${hostSelector}::part(${partName})` : hostSelector,
+    );
+    innermost = false;
+
+    if (parentRoot && parentRoot.nodeType === 9) break;
+    currentRoot = parentRoot;
+  }
+
+  return segments.length > 1 ? segments.join(" >>> ") : segments[0] || "";
+}
+
+// 链只在应用设置时解析；开放 shadow root 找不到就返回空，不抛错。
+function resolveShadowChain(selector) {
+  const segments = String(selector)
+    .split(">>>")
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+  if (segments.length < 2) return [];
+
+  const results = [];
+  const walk = (scope, index) => {
+    const segment = segments[index];
+    const isLast = index === segments.length - 1;
+    const partMatch = segment.match(/^(.*?)::part\(([^)]+)\)$/);
+
+    if (isLast && partMatch) {
+      const hostSelector = partMatch[1].trim();
+      const partName = partMatch[2].trim().split(/\s+/)[0];
+      if (!hostSelector || !partName) return;
+
+      const escapedName = partName.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+      let hosts;
+      try {
+        hosts = scope.querySelectorAll(hostSelector);
+      } catch (_) {
+        return;
+      }
+
+      for (const host of hosts) {
+        const shadowRoot = host.shadowRoot;
+        if (!shadowRoot) continue;
+        try {
+          shadowRoot
+            .querySelectorAll(`[part~="${escapedName}"]`)
+            .forEach((element) => results.push(element));
+        } catch (_) {}
+      }
+      return;
+    }
+
+    let matches;
+    try {
+      matches = scope.querySelectorAll(segment);
+    } catch (_) {
+      return;
+    }
+
+    for (const element of matches) {
+      if (isLast) {
+        results.push(element);
+      } else if (element.shadowRoot) {
+        walk(element.shadowRoot, index + 1);
+      }
+    }
+  };
+
+  walk(document, 0);
+  return results;
+}
+
+function clearExcludedFontResets() {
+  for (const element of excludedFontElements) {
+    const previous = excludedFontPrevious.get(element);
+    if (previous && previous.value) {
+      element.style.setProperty(
+        "font-family",
+        previous.value,
+        previous.priority,
+      );
+    } else {
+      element.style.removeProperty("font-family");
+    }
+    // 撤销后别在页面上留下一个空的 style="" 属性。
+    if (element.style.length === 0) element.removeAttribute("style");
+    excludedFontPrevious.delete(element);
+  }
+  excludedFontElements.clear();
+}
+
+// 在页面自己的样式下读取被排除元素的原始字体，然后钉回去。
+// 必须先撤掉本扩展的 <style> 和上一轮钉回，否则读到的就是自己写的字体。
+function captureStyleProperty(element, property) {
+  return {
+    value: element.style.getPropertyValue(property),
+    priority: element.style.getPropertyPriority(property),
+  };
+}
+
+function restoreStyleProperty(element, property, previous) {
+  if (previous && previous.value) {
+    element.style.setProperty(property, previous.value, previous.priority);
+  } else {
+    element.style.removeProperty(property);
+  }
+}
+
+function clearChainFontOverrides() {
+  for (const element of chainFontElements) {
+    const previous = chainFontPrevious.get(element);
+    if (previous) {
+      restoreStyleProperty(element, "font-family", previous.fontFamily);
+      restoreStyleProperty(element, "line-height", previous.lineHeight);
+    }
+    if (element.style.length === 0) element.removeAttribute("style");
+    chainFontPrevious.delete(element);
+  }
+  chainFontElements.clear();
+}
+
+function fontFamilyValue(name, fallback) {
+  const escaped = String(name).replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  return `"${escaped}", ${fallback}`;
+}
+
+function hasExcludedAncestor(element) {
+  let current = element;
+  while (current) {
+    if (excludedFontElements.has(current)) return true;
+    if (current.parentElement) {
+      current = current.parentElement;
+    } else {
+      // 到 shadow root 顶部后跳到宿主，继续检查外层是否被排除。
+      const root = current.getRootNode();
+      current = root && root.host ? root.host : null;
+    }
+  }
+  return false;
+}
+
+function collectOpenShadowRoots() {
+  const roots = [];
+  const walk = (scope) => {
+    const walker = document.createTreeWalker(scope, NodeFilter.SHOW_ELEMENT);
+    let node;
+    while ((node = walker.nextNode())) {
+      const root = node.shadowRoot;
+      if (!root) continue;
+      roots.push(root);
+      walk(root);
+    }
+  };
+  walk(document);
+  return roots;
+}
+
+function clearShadowRefreshTimers() {
+  for (const timer of shadowRefreshTimers) clearTimeout(timer);
+  shadowRefreshTimers = [];
+}
+
+function isOwnShadowStyleMutation(mutation) {
+  const target = mutation.target;
+  if (
+    target &&
+    target.nodeType === 1 &&
+    target.matches?.("style[data-pure-read-shadow]")
+  ) {
+    return true;
+  }
+  const nodes = [...mutation.addedNodes, ...mutation.removedNodes];
+  return (
+    nodes.length > 0 &&
+    nodes.every(
+      (node) =>
+        node.nodeType === 1 &&
+        node.matches?.("style[data-pure-read-shadow]"),
+    )
+  );
+}
+
+function ensureShadowObserver() {
+  if (shadowObserver) return;
+
+  shadowObserver = new MutationObserver((mutations) => {
+    if (!latestShadowCss) return;
+    // 忽略我们自己插入/更新 shadow <style> 造成的 mutation，避免自激。
+    if (mutations.every(isOwnShadowStyleMutation)) return;
+
+    clearTimeout(shadowMutationTimer);
+    shadowMutationTimer = setTimeout(() => {
+      shadowMutationTimer = null;
+      if (latestShadowCss) applyShadowStyles(latestShadowCss, true);
+    }, 300);
+  });
+
+  shadowObserver.observe(document.documentElement, {
+    childList: true,
+    subtree: true,
+  });
+}
+
+function removeShadowStyles() {
+  clearShadowRefreshTimers();
+  clearTimeout(shadowMutationTimer);
+  shadowMutationTimer = null;
+  latestShadowCss = "";
+
+  if (shadowObserver) {
+    shadowObserver.disconnect();
+    shadowObserver = null;
+  }
+  observedShadowRoots = new WeakSet();
+
+  for (const style of shadowStyleMap.values()) style.remove();
+  shadowStyleMap.clear();
+}
+
+// 有些组件在 DOMContentLoaded 之后才升级/挂载 shadow root。安排几次
+// 轻量重扫；MutationObserver 处理正常的 DOM 新增，这里专门兜底
+// 「宿主已经存在、后来才 attachShadow」的情况。
+function scheduleShadowRescan(css, enabled) {
+  clearShadowRefreshTimers();
+  if (!enabled || !css) return;
+
+  for (const delay of [250, 800, 2000, 5000]) {
+    shadowRefreshTimers.push(
+      setTimeout(() => applyShadowStyles(css, true), delay),
+    );
+  }
+}
+
+// 把与顶层同样的字体规则写进每一个开放 shadow root。这样组件内部
+// 就算显式声明了 font-family，也会被 !important 盖掉，不需要逐个 part
+// 额外匹配。宿主（或它的 shadow 宿主祖先）被排除时整棵 root 跳过。
+function applyShadowStyles(css, enabled) {
+  if (!enabled || !css) {
+    removeShadowStyles();
+    return;
+  }
+
+  latestShadowCss = css;
+  ensureShadowObserver();
+
+  const roots = collectOpenShadowRoots();
+  const seen = new Set();
+
+  for (const root of roots) {
+    if (hasExcludedAncestor(root.host)) continue;
+    seen.add(root);
+
+    if (!observedShadowRoots.has(root)) {
+      observedShadowRoots.add(root);
+      shadowObserver.observe(root, { childList: true, subtree: true });
+    }
+
+    let style = shadowStyleMap.get(root);
+    if (!style) {
+      style = document.createElement("style");
+      style.setAttribute("data-pure-read-shadow", "");
+      shadowStyleMap.set(root, style);
+      root.appendChild(style);
+    }
+    // 设置没变时不重写，避免无谓的样式重算。
+    if (style.textContent !== css) style.textContent = css;
+  }
+
+  for (const [root, style] of shadowStyleMap) {
+    if (seen.has(root)) continue;
+    style.remove();
+    shadowStyleMap.delete(root);
+  }
+}
+
+function applyChainFontOverrides(rules) {
+  for (const rule of rules) {
+    const { element, font, fallback, lineHeight } = rule;
+    if (!element || !font) continue;
+    // 排除项优先：目标自身或任一 shadow 宿主祖先被排除时，保留原字体。
+    if (hasExcludedAncestor(element)) continue;
+
+    if (!chainFontPrevious.has(element)) {
+      chainFontPrevious.set(element, {
+        fontFamily: captureStyleProperty(element, "font-family"),
+        lineHeight: captureStyleProperty(element, "line-height"),
+      });
+      chainFontElements.add(element);
+    }
+
+    element.style.setProperty(
+      "font-family",
+      fontFamilyValue(font, fallback),
+      "important",
+    );
+    if (lineHeight) {
+      element.style.setProperty("line-height", lineHeight, "important");
+    }
+  }
+}
+
+function resetExcludedFonts(
+  excludeSelectors,
+  partSelectors = [],
+  chainSelectors = [],
+) {
+  if (
+    !excludeSelectors.length &&
+    !partSelectors.length &&
+    !chainSelectors.length
+  ) {
+    clearExcludedFontResets();
+    return;
+  }
+
+  document.getElementById("pure-read-injector")?.remove();
+  clearExcludedFontResets();
+
+  const elements = new Set();
+  for (const selector of excludeSelectors) {
+    try {
+      document
+        .querySelectorAll(selector)
+        .forEach((element) => elements.add(element));
+    } catch (_) {}
+  }
+  for (const selector of partSelectors) {
+    queryPartElements(selector).forEach((element) => elements.add(element));
+  }
+  for (const selector of chainSelectors) {
+    resolveShadowChain(selector).forEach((element) => elements.add(element));
+  }
+
+  if (elements.size > MAX_EXCLUDED_FONT_RESETS) {
+    console.warn(
+      "[PureRead] 排除项命中元素过多，已跳过原字体回填:",
+      elements.size,
+    );
+    return;
+  }
+
+  for (const element of elements) {
+    let original;
+    try {
+      original = getComputedStyle(element).fontFamily;
+    } catch (_) {
+      continue;
+    }
+    if (!original) continue;
+
+    excludedFontPrevious.set(element, {
+      value: element.style.getPropertyValue("font-family"),
+      priority: element.style.getPropertyPriority("font-family"),
+    });
+    element.style.setProperty("font-family", original, "important");
+    excludedFontElements.add(element);
+  }
+}
+
+// 内容脚本在 document_start 注入，此时外部样式表可能还没解析完，
+// 读到的「原字体」会失真。等 DOMContentLoaded（渲染阻塞样式表已加载）
+// 再重跑一次；只在存在排除项或嵌套链时安装，避免无谓的重绘。
+function installExcludeRefreshHook() {
+  if (excludeRefreshHookInstalled) return;
+  excludeRefreshHookInstalled = true;
+
+  const refresh = () => {
+    if (latestSettings) updateContentStyles(latestSettings);
+  };
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", refresh, { once: true });
+  } else {
+    setTimeout(refresh, 0);
+  }
+}
 
 // 监听存储变化（其他页面/tab 的配置更新会触发这里）
 chrome.storage.onChanged.addListener((changes, areaName) => {
@@ -111,6 +577,7 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
 });
 
 function updateContentStyles(settings) {
+  latestSettings = settings;
   const domain = getFrameSiteDomain();
   const global = settings.global || {};
   const sites = settings.sites || {};
@@ -138,14 +605,17 @@ function updateContentStyles(settings) {
   };
 
   const selectors = global.selectors || { standard: "", mono: "", math: "" };
-  applyStyles(mapping, selectors);
+  applyStyles(mapping, selectors, { shadowDom: shadowDomEnabled(settings) });
 }
 
 function removeStyles() {
   document.getElementById("pure-read-injector")?.remove();
+  removeShadowStyles();
+  clearChainFontOverrides();
+  clearExcludedFontResets();
 }
 
-function applyStyles(mapping, selectors) {
+function applyStyles(mapping, selectors, { shadowDom = false } = {}) {
   const font = (name, fallback) => (name ? `font-family: "${name}", ${fallback} !important;` : "");
   const selectorConfig =
     typeof selectors === "string"
@@ -182,9 +652,28 @@ function applyStyles(mapping, selectors) {
       .map((s) => (stripPseudo ? s.replace(/::?(before|after)$/i, "").trim() : s))
       .filter((s) => s);
 
+  // ::part() 只能出现在复合选择器的末尾，后面再接 :not(...) 会让整条
+  // 规则失效（浏览器会把它当成非法选择器丢掉）。所以排除门要插在
+  // ::part 之前：mdn-button:not(...)::part(label) 才是合法的。
+  const gateForSelector = (selector, gate) => {
+    if (!gate) return selector;
+    const partIndex = selector.indexOf("::part(");
+    return partIndex === -1
+      ? `${selector}${gate}`
+      : `${selector.slice(0, partIndex)}${gate}${selector.slice(partIndex)}`;
+  };
+
   const getExtra = (key, gate = "") => {
-    const list = parseSelectorList(selectorConfig.include[key]);
-    return list.length ? `, ${list.map((s) => `${s}${gate}`).join(", ")}` : "";
+    const list = parseSelectorList(selectorConfig.include[key]).filter(
+      (selector) =>
+        !isShadowChainSelector(selector) &&
+        !isPartSelector(selector) &&
+        !partExcludeLines.includes(selector) &&
+        !chainExcludeLines.includes(selector),
+    );
+    return list.length
+      ? `, ${list.map((selector) => gateForSelector(selector, gate)).join(", ")}`
+      : "";
   };
 
   // 默认内置排除规则
@@ -195,17 +684,123 @@ function applyStyles(mapping, selectors) {
     player: ':not([class*="player"]):not([class*="Player"]):not([class*="video"]):not([class*="Video"])',
   };
 
-  const manualExcludeLines = parseSelectorList(selectorConfig.exclude, {
+  // 代码编辑器推断：先用主流编辑器的稳定 class，再覆盖常见的
+  // contenteditable「类名/ID 带 editor/code」变体。这些元素整棵子树
+  // 从正文字体里排除，改由「代码 / 等宽」字体接管；但不再强迫行高，
+  // 避免把编辑器行高、光标位置压坏。
+  const EDITOR_SELECTORS = [
+    ".cm-editor",
+    ".CodeMirror",
+    ".monaco-editor",
+    ".ace_editor",
+    ".hljs",
+    ".xterm",
+    ".terminal",
+    '[class*="codemirror" i]',
+    '[class*="code-editor" i]',
+    '[class*="code-block" i]',
+    '[class*="codeblock" i]',
+    '[class*="source-code" i]',
+    '[class*="monaco-editor" i]',
+    '[class*="ace_editor" i]',
+    '[data-language]',
+    '[contenteditable][class*="editor" i]',
+    '[contenteditable][id*="editor" i]',
+    '[contenteditable][class*="code" i]',
+    '[contenteditable][id*="code" i]',
+    'textarea[class*="editor" i]',
+    'textarea[id*="editor" i]',
+    'textarea[class*="code" i]',
+    'textarea[id*="code" i]',
+  ];
+  const editorGate = EDITOR_SELECTORS.flatMap((selector) => [
+    `:not(${selector})`,
+    `:not(${selector} *)`,
+  ]).join("");
+
+  const allExcludeLines = parseSelectorList(selectorConfig.exclude, {
     stripPseudo: true,
   });
+  // ::part 选择器不能进 :not()，也无法用 querySelectorAll 读取原字体；
+  // 它只用于「不要对某个 part 做额外匹配」，所以单独拆出来。
+  // >>> 链同样不是 CSS 选择器，由运行时解析后走 inline style。
+  const chainExcludeLines = allExcludeLines.filter(isShadowChainSelector);
+  const partExcludeLines = allExcludeLines.filter(
+    (selector) =>
+      !isShadowChainSelector(selector) && isPartSelector(selector),
+  );
+  const manualExcludeLines = allExcludeLines.filter(
+    (selector) =>
+      !isShadowChainSelector(selector) && !isPartSelector(selector),
+  );
   const excludeSelectorStr = manualExcludeLines.length
     ? manualExcludeLines.flatMap((s) => [s, `${s} *`]).join(", ")
     : "";
   const manualExcludeGate = excludeSelectorStr ? `:not(${excludeSelectorStr})` : "";
+  // 编辑器主题（CodeMirror/Monaco）常用高特异性规则写 font-family，
+  // 这里借一个永远不会存在的 id 抬高特异性，确保用户的代码字体能压过去。
+  const EDITOR_BOOST = ":not(#pure-read-editor-never-match)";
+  const editorSelectorsGated = EDITOR_SELECTORS.flatMap((selector) => [
+    `${selector}${EDITOR_BOOST}${manualExcludeGate}`,
+    `${selector}${EDITOR_BOOST} *${manualExcludeGate}`,
+  ]).join(", ");
+
+  // 链式额外匹配是 inline style，shadow root 里也有上一轮的注入样式；
+  // 读原字体前必须全部撤掉，否则排除项读到的是自己写的字体。
+  clearChainFontOverrides();
+  removeShadowStyles();
+  // 这一步会先撤掉旧 <style>，读取页面原字体后再钉回；必须发生在生成新
+  // 样式之前，否则读到的就是上一轮的用户字体。
+  resetExcludedFonts(
+    manualExcludeLines,
+    partExcludeLines,
+    chainExcludeLines,
+  );
+
+  // part / >>> 链不走普通 CSS：解析出最内层元素后写 inline style。
+  // shadow root 里注入的 * 规则也是 !important，只有 inline 才能稳定
+  // 盖过它；同时也能处理链式嵌套。
+  const shadowRules = [];
+  const addShadowRules = (key, fontName, fallback, lineHeight) => {
+    if (!fontName) return;
+    for (const selector of parseSelectorList(selectorConfig.include[key])) {
+      if (
+        partExcludeLines.includes(selector) ||
+        chainExcludeLines.includes(selector)
+      ) {
+        continue;
+      }
+
+      let targets;
+      if (isShadowChainSelector(selector)) {
+        targets = resolveShadowChain(selector);
+      } else if (isPartSelector(selector)) {
+        targets = queryPartElements(selector);
+      } else {
+        continue;
+      }
+
+      for (const element of targets) {
+        shadowRules.push({ element, font: fontName, fallback, lineHeight });
+      }
+    }
+  };
+  addShadowRules("standard", mapping.standard, "sans-serif", "");
+  addShadowRules("mono", mapping.mono, "monospace", "1.4");
+  addShadowRules("math", mapping.math, "serif", "");
+
+  const hasShadowTargetIncludes = ["standard", "mono", "math"].some((key) =>
+    parseSelectorList(selectorConfig.include[key]).some(
+      (selector) =>
+        (isShadowChainSelector(selector) || isPartSelector(selector)) &&
+        !partExcludeLines.includes(selector) &&
+        !chainExcludeLines.includes(selector),
+    ),
+  );
 
   const css = `
     /* 标准字体 */
-    body *${exclude.code}${exclude.media}${exclude.player}${exclude.icon}:not(math):not(.katex)${manualExcludeGate}${getExtra("standard", manualExcludeGate)} {
+    body *${exclude.code}${exclude.media}${exclude.player}${exclude.icon}${editorGate}:not(math):not(.katex)${manualExcludeGate}${getExtra("standard", manualExcludeGate)} {
       ${font(mapping.standard, "sans-serif")}
     }
 
@@ -221,6 +816,13 @@ function applyStyles(mapping, selectors) {
       line-height: 1.4 !important;
     }
 
+    ${mapping.mono ? `
+    /* 代码编辑器：只换字体，不改行高，避免破坏编辑器的光标/对齐 */
+    ${editorSelectorsGated} {
+      ${font(mapping.mono, "monospace")}
+    }
+    ` : ""}
+
     /* 数学公式 */
     body math${manualExcludeGate}, body math *${manualExcludeGate}, body .mjx-chtml${manualExcludeGate}, body .mjx-chtml *${manualExcludeGate},
     body .katex${manualExcludeGate}, body .katex *${manualExcludeGate}${getExtra("math", manualExcludeGate)} {
@@ -228,13 +830,66 @@ function applyStyles(mapping, selectors) {
     }
   `;
 
+  // shadow root 内的版本：去掉 body 前缀；额外匹配不复制（链式规则
+  // 会以 inline style 精确覆盖具体元素），其余排除规则保持一致。
+  const hasShadowFont = Boolean(
+    mapping.standard || mapping.mono || mapping.math,
+  );
+  const shadowCss = !hasShadowFont
+    ? ""
+    : `
+      *${exclude.code}${exclude.media}${exclude.player}${exclude.icon}${editorGate}:not(math):not(.katex)${manualExcludeGate} {
+        ${font(mapping.standard, "sans-serif")}
+      }
+
+      pre${manualExcludeGate}, code${manualExcludeGate}, kbd${manualExcludeGate}, samp${manualExcludeGate},
+      pre *${manualExcludeGate}, code *${manualExcludeGate}, kbd *${manualExcludeGate}, samp *${manualExcludeGate},
+      .blob-code${manualExcludeGate}, .blob-code *${manualExcludeGate}, .text-mono${manualExcludeGate}, .mono${manualExcludeGate},
+      [class*="pl-"]${manualExcludeGate}, .blob-code-inner${manualExcludeGate}, .blob-code-inner *${manualExcludeGate},
+      div.highlight pre${manualExcludeGate}, div.highlight pre *${manualExcludeGate},
+      pre[class*="language"]${manualExcludeGate}, pre[class*="language"] *${manualExcludeGate},
+      code[class*="language"]${manualExcludeGate}, code[class*="language"] *${manualExcludeGate} {
+        ${font(mapping.mono, "monospace")}
+        line-height: 1.4 !important;
+      }
+
+      ${mapping.mono ? `
+      /* 代码编辑器：只换字体，不改行高 */
+      ${editorSelectorsGated} {
+        ${font(mapping.mono, "monospace")}
+      }
+      ` : ""}
+
+      math${manualExcludeGate}, math *${manualExcludeGate}, .mjx-chtml${manualExcludeGate}, .mjx-chtml *${manualExcludeGate},
+      .katex${manualExcludeGate}, .katex *${manualExcludeGate} {
+        ${font(mapping.math, "serif")}
+      }
+    `;
+
   let style = document.getElementById("pure-read-injector");
   if (!style) {
     style = document.createElement("style");
     style.id = "pure-read-injector";
-    document.documentElement.appendChild(style);
   }
   style.textContent = css;
+  // resetExcludedFonts() 会先把旧 <style> 摘掉再读原字体，所以这里要按
+  // isConnected 判断，不能假定节点还在文档里。
+  if (!style.isConnected) {
+    document.documentElement.appendChild(style);
+  }
+
+  applyChainFontOverrides(shadowRules);
+  applyShadowStyles(shadowCss, shadowDom);
+  scheduleShadowRescan(shadowCss, shadowDom);
+
+  if (
+    manualExcludeLines.length ||
+    partExcludeLines.length ||
+    chainExcludeLines.length ||
+    hasShadowTargetIncludes
+  ) {
+    installExcludeRefreshHook();
+  }
 }
 
 // 拾取目标的名字。原先是一张常量表 + `PICKER_TARGET_LABELS[t].split(" · ")[1]`
@@ -257,8 +912,36 @@ let selectorPickerState = null;
 let selectorPickerToastTimer = null;
 let selectorPickerToastExitTimer = null;
 let selectorPickerToastId = "pure-read-selector-picker-toast";
-const PICKER_FLOAT_FONT =
-  '"LXGW 975 HazyGo SC 500W",-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif';
+
+// 拾取浮层跟随扩展界面字体（storage.local 的 uiFont）。默认系统字体；
+// 不引入任何远程字体，隐私和离线都更稳。
+const UI_FONT_SYSTEM_STACK =
+  '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", Roboto, Helvetica, Arial, sans-serif';
+let PICKER_FLOAT_FONT = UI_FONT_SYSTEM_STACK;
+
+function uiFontCssValue(value) {
+  const family =
+    value &&
+    typeof value === "object" &&
+    value.mode === "custom" &&
+    typeof value.family === "string"
+      ? value.family.trim()
+      : "";
+  if (!family) return UI_FONT_SYSTEM_STACK;
+  const escaped = family.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  return `"${escaped}", ${UI_FONT_SYSTEM_STACK}`;
+}
+
+if (IS_TOP_FRAME) {
+  chrome.storage.local.get(["uiFont"], (result) => {
+    PICKER_FLOAT_FONT = uiFontCssValue(result.uiFont);
+  });
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName === "local" && changes.uiFont) {
+      PICKER_FLOAT_FONT = uiFontCssValue(changes.uiFont.newValue);
+    }
+  });
+}
 // 四种拾取类型各一个色相，取值对齐 options.html 图标圆的语义色（明/暗两套）。
 // 约束：值必须保持 6 位 hex —— hexToRgba() 依赖它。
 const PICKER_TARGET_HUES = {
@@ -383,8 +1066,6 @@ function ensureSelectorPickerUiStyle() {
   const style = document.createElement("style");
   style.id = selectorPickerUiStyleId;
   style.textContent = `
-    @import url("https://fontsapi.zeoseven.com/144/main/result.css");
-
     /* toast 钉在右上角，所以进出都走右边这条边：从右侧滑进来、再往右侧退回去。
        原来是从上方 -10px 落下来，跟它贴的那条边不一致，像是从屏幕外掉下来的。
        缩放中心由元素的 transform-origin: top right 决定，正好是钉住的那个角。 */
@@ -423,7 +1104,7 @@ function ensureSelectorPickerUiStyle() {
 
     /* 颜色一律走元素级变量，样式表本身与调色板无关：
        换主题/换拾取类型时只重设选取框上的 --pr-*，不必重建这个 <style>。
-       也不能把颜色烤进来 —— 那样每换一次类型就得重建，@import 会被反复触发。 */
+       也不能把颜色烤进来 —— 那样每换一次类型就得重建整个 <style>。 */
     @keyframes prPickerGlow {
       0%,
       100% {
@@ -733,7 +1414,8 @@ function createSelectorPickerToast({
     });
     if (monoBody) {
       // 选择器可能是一长串没有空格的 class，得允许在任意位置断。
-      bodyEl.style.fontFamily = '"LXGW 975 HazyGo SC 500W",ui-monospace, monospace';
+      bodyEl.style.fontFamily =
+        "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
       bodyEl.style.wordBreak = "break-all";
     }
     textGroup.appendChild(bodyEl);
@@ -862,9 +1544,9 @@ function escapeCssIdentifier(value) {
   return String(value).replace(/[^a-zA-Z0-9_-]/g, (char) => `\\${char}`);
 }
 
-function isUniqueSelector(selector) {
+function isUniqueSelector(selector, scope = document) {
   try {
-    return document.querySelectorAll(selector).length === 1;
+    return scope.querySelectorAll(selector).length === 1;
   } catch (_) {
     return false;
   }
@@ -883,12 +1565,12 @@ function getNthOfTypeIndex(element) {
   return index;
 }
 
-function buildSelectorSegment(element) {
+function buildSelectorSegment(element, scope = document) {
   const tag = element.tagName.toLowerCase();
   const id = element.getAttribute("id");
   if (id) {
     const selector = `#${escapeCssIdentifier(id)}`;
-    if (isUniqueSelector(selector)) return selector;
+    if (isUniqueSelector(selector, scope)) return selector;
   }
 
   const classes = Array.from(element.classList || [])
@@ -898,29 +1580,35 @@ function buildSelectorSegment(element) {
   let selector = tag;
   if (classes.length) {
     selector += `.${classes.map(escapeCssIdentifier).join(".")}`;
-    if (isUniqueSelector(selector)) return selector;
+    if (isUniqueSelector(selector, scope)) return selector;
   }
 
   return `${selector}:nth-of-type(${getNthOfTypeIndex(element)})`;
 }
 
-function buildSelectorPath(element) {
+// scope 可以是 document，也可以是某个 shadow root。嵌套 shadow 里的宿主
+// 只有在其所在的树里求值才可能唯一，不能一律拿 document 去查。
+function buildSelectorPath(element, scope) {
   if (!(element instanceof Element)) return "";
 
+  const root =
+    scope ||
+    (element.getRootNode().nodeType === 9 ? document : element.getRootNode());
   const id = element.getAttribute("id");
   if (id) {
     const selector = `#${escapeCssIdentifier(id)}`;
-    if (isUniqueSelector(selector)) return selector;
+    if (isUniqueSelector(selector, root)) return selector;
   }
 
   const segments = [];
   let current = element;
   let depth = 0;
+  const stopAt = root.nodeType === 9 ? root.documentElement : null;
 
-  while (current && depth < 5 && current !== document.documentElement) {
-    segments.unshift(buildSelectorSegment(current));
+  while (current && depth < 5 && current !== stopAt) {
+    segments.unshift(buildSelectorSegment(current, root));
     const selector = segments.join(" > ");
-    if (isUniqueSelector(selector)) return selector;
+    if (isUniqueSelector(selector, root)) return selector;
     current = current.parentElement;
     depth += 1;
   }
@@ -943,19 +1631,90 @@ function getElementLabel(element) {
   return label;
 }
 
-function getPickerElement(target) {
-  if (!(target instanceof Element)) return null;
+// 事件在 shadow DOM 里会被 retarget 成宿主元素（event.target 是宿主），
+// 但 composedPath() 仍能拿到开放 shadow root 内部的真实节点。
+function getEventTargetElement(event) {
+  const path =
+    typeof event.composedPath === "function" ? event.composedPath() : [];
+  for (const node of path) {
+    // 不用 instanceof Element：content script 在 isolated world，
+    // 事件路径里的节点可能是另一个 realm 的包装对象。
+    if (node && node.nodeType === 1) return node;
+  }
+  return event.target && event.target.nodeType === 1 ? event.target : null;
+}
+
+// 从命中的节点向上找最近的 part。::part() 只能样式化带 part 属性的
+// 那个元素本身，不能穿透到它的子节点，所以取最近的一层最稳。
+function findNearestPart(element, root) {
+  let current = element;
+  while (current && current !== root.host) {
+    const part = current.getAttribute?.("part");
+    if (part && part.trim()) {
+      return {
+        element: current,
+        name: part.trim().split(/\s+/)[0],
+      };
+    }
+    current = current.parentElement;
+  }
+  return null;
+}
+
+function getPickerTarget(event) {
+  let target = getEventTargetElement(event);
+  if (!target) return null;
   if (target.closest('[id^="pure-read-selector-picker"]')) return null;
 
   const tag = target.tagName.toLowerCase();
   if (tag === "path" || tag === "use") {
-    return target.closest("svg") || target;
+    target = target.closest("svg") || target;
   }
 
-  return target;
+  const root = target.getRootNode();
+  // 11 = DOCUMENT_FRAGMENT_NODE；有 host 才是 ShadowRoot。
+  // 同样避免跨 world 的 instanceof ShadowRoot 判断。
+  if (root && root.nodeType === 11 && root.host) {
+    const part = findNearestPart(target, root);
+    if (!part) {
+      // 开放 shadow root 但没暴露 part：页面 CSS 无法命中内部节点。
+      // 返回宿主让高亮仍有反馈，但 selector 留空，点击时明确拒绝。
+      return { element: root.host, selector: "", blocked: true };
+    }
+
+    // 宿主自己还套在另一层 shadow root 里。::part() 只能跨一层：
+    // 除非外层组件用 exportparts 转发，否则顶层 CSS 生成的
+    // host::part(name) 只会在文档树里找宿主，命不中里面的组件。
+    // 这种情况不能假装成功，否则就是「能选中、点了没反应」。
+    const outerRoot = root.host.getRootNode();
+    if (outerRoot && outerRoot.nodeType === 11 && outerRoot.host) {
+      // 外层也是 shadow root：生成 >>> 链，由运行时逐层解析。
+      const chain = buildShadowChain(part.name, root);
+      if (!chain) {
+        return { element: part.element, selector: "", blocked: true };
+      }
+      return { element: part.element, selector: chain, blocked: false };
+    }
+
+    const hostSelector = buildSelectorPath(root.host);
+    if (!hostSelector) {
+      return { element: part.element, selector: "", blocked: true };
+    }
+    return {
+      element: part.element,
+      selector: `${hostSelector}::part(${part.name})`,
+      blocked: false,
+    };
+  }
+
+  return {
+    element: target,
+    selector: buildSelectorPath(target),
+    blocked: false,
+  };
 }
 
-function updatePickerTip(element, selector) {
+function updatePickerTip(element, selector, blocked = false) {
   if (!selectorPickerState?.tip) return;
 
   const { tip, target } = selectorPickerState;
@@ -966,9 +1725,17 @@ function updatePickerTip(element, selector) {
     element ? getElementLabel(element) : I18n.t("picker.waitingElement"),
   );
   const finalSelector = escape(
-    selector || I18n.t("picker.waitingSelector"),
+    selector ||
+      (blocked
+        ? I18n.t("picker.tip.shadowBlocked")
+        : I18n.t("picker.waitingSelector")),
   );
   const colors = pickerColors(target);
+  // 被 shadow 边界挡住时，选择器卡片换成错误色，明确告诉用户
+  // 「不是没生成选择器，而是页面 CSS 根本到不了里面」。
+  const selectorBg = blocked ? colors.errorSoft : colors.primarySoft;
+  const selectorBorder = blocked ? colors.error : colors.accentDash;
+  const selectorFg = blocked ? colors.error : colors.primary;
   // 键帽样式抽出来复用：两处唯一的差别就是键名。
   // color 必须显式给 —— 不给就继承页脚那行的 textMuted，9px 下就已经很糊，
   // 暗色底上更是看不见（这正是要修的那个 bug）。
@@ -995,9 +1762,9 @@ function updatePickerTip(element, selector) {
           <div style="font-size:13px; font-weight:600; color:${colors.text}; font-family:inherit, monospace; word-break:break-word;">${label}</div>
         </div>
 
-        <div style="display:flex; flex-direction:column; gap:6px; padding:10px; background:${colors.primarySoft}; border-radius:8px; border:1px dashed ${colors.accentDash};">
-          <div style="font-size:10px; font-weight:700; color:${colors.primary}; text-transform:uppercase; opacity:0.8;">${I18n.t("picker.tip.selector")}</div>
-          <div style="font-size:12px; line-height:1.4; color:${colors.primary}; font-weight:500; word-break:break-all;">${finalSelector}</div>
+        <div style="display:flex; flex-direction:column; gap:6px; padding:10px; background:${selectorBg}; border-radius:8px; border:1px dashed ${selectorBorder};">
+          <div style="font-size:10px; font-weight:700; color:${selectorFg}; text-transform:uppercase; opacity:0.8;">${I18n.t("picker.tip.selector")}</div>
+          <div style="font-size:12px; line-height:1.4; color:${selectorFg}; font-weight:500; word-break:break-all;">${finalSelector}</div>
         </div>
       </div>
 
@@ -1014,26 +1781,30 @@ function updatePickerTip(element, selector) {
   `;
 }
 
-function updatePickerOverlay(element) {
+function updatePickerOverlay(pick) {
   if (!selectorPickerState) return;
 
-  selectorPickerState.hoveredElement = element;
+  selectorPickerState.hoveredPick = pick || null;
+  selectorPickerState.hoveredElement = pick?.element || null;
+  selectorPickerState.hoveredSelector = pick?.selector || "";
+  selectorPickerState.hoveredBlocked = Boolean(pick?.blocked);
+
   const { box, tip } = selectorPickerState;
-  if (!element) {
+  if (!pick || !pick.element) {
     box.style.opacity = "0";
-    updatePickerTip(null, "");
+    updatePickerTip(null, "", false);
     return;
   }
 
+  const element = pick.element;
   const rect = element.getBoundingClientRect();
-  const selector = buildSelectorPath(element);
   box.style.opacity = rect.width > 0 && rect.height > 0 ? "1" : "0";
   box.style.left = `${rect.left}px`;
   box.style.top = `${rect.top}px`;
   box.style.width = `${rect.width}px`;
   box.style.height = `${rect.height}px`;
 
-  updatePickerTip(element, selector);
+  updatePickerTip(element, pick.selector, pick.blocked);
 
   const tipWidth = Math.min(360, Math.max(260, tip.offsetWidth || 320));
   const tipHeight = tip.offsetHeight || 110;
@@ -1199,11 +1970,11 @@ function startSelectorPicker(target = "standard") {
   document.documentElement.appendChild(root);
 
   const onMouseMove = (event) => {
-    updatePickerOverlay(getPickerElement(event.target));
+    updatePickerOverlay(getPickerTarget(event));
   };
 
   const onScroll = () => {
-    updatePickerOverlay(selectorPickerState?.hoveredElement || null);
+    updatePickerOverlay(selectorPickerState?.hoveredPick || null);
   };
 
   const onKeyDown = (event) => {
@@ -1214,15 +1985,23 @@ function startSelectorPicker(target = "standard") {
   };
 
   const onClick = async (event) => {
-    const element = getPickerElement(event.target);
-    if (!element) return;
+    const pick = getPickerTarget(event);
+    if (!pick) return;
 
     event.preventDefault();
     event.stopPropagation();
     event.stopImmediatePropagation();
 
-    const selector = buildSelectorPath(element);
-    if (!selector) {
+    if (pick.blocked) {
+      showSelectorPickerToast(
+        I18n.t("picker.toast.noPart"),
+        "error",
+        normalizedTarget,
+      );
+      return;
+    }
+
+    if (!pick.selector) {
       showSelectorPickerToast(
         I18n.t("picker.toast.noSelector"),
         "error",
@@ -1230,6 +2009,8 @@ function startSelectorPicker(target = "standard") {
       );
       return;
     }
+
+    const selector = pick.selector;
 
     try {
       const change = await savePickedSelector(normalizedTarget, selector);
@@ -1263,7 +2044,7 @@ function startSelectorPicker(target = "standard") {
   const schemeQuery = pickerSchemeQuery();
   const onSchemeChange = () => {
     applyPickerColors();
-    updatePickerOverlay(selectorPickerState?.hoveredElement || null);
+    updatePickerOverlay(selectorPickerState?.hoveredPick || null);
   };
 
   selectorPickerState = {
@@ -1272,6 +2053,9 @@ function startSelectorPicker(target = "standard") {
     tip,
     target: normalizedTarget,
     hoveredElement: null,
+    hoveredPick: null,
+    hoveredSelector: "",
+    hoveredBlocked: false,
     onMouseMove,
     onClick,
     onKeyDown,

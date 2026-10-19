@@ -30,6 +30,7 @@
 | 键                            | 内容                               |
 | ----------------------------- | ---------------------------------- |
 | `uiLocale`                    | 界面语言偏好                       |
+| `uiFont`                      | 界面字体偏好（系统 / 本机字体）    |
 | `fontCache`                   | 本机字体列表的缓存                 |
 | `latestRelease` / `releaseUrl` | 最近一次更新检查的结果             |
 
@@ -37,14 +38,13 @@
 
 ## 三、什么时候会联网
 
-只有两个固定的只读请求，除 HTTP 请求本身必需的 IP、User-Agent、Referer 外**不携带任何你的数据**：
+只有一个固定的只读请求，除 HTTP 请求本身必需的 IP、User-Agent、Referer 外**不携带任何你的数据**：
 
-| 目标                                                          | 时机                                                   | 用途                             |
-| ------------------------------------------------------------- | ------------------------------------------------------ | -------------------------------- |
-| `api.github.com/repos/Dnzzk2/PureRead/releases/latest`         | 安装时、浏览器启动时，此后每 12 小时                    | 读取最新版本号，用于提示更新     |
-| `fontsapi.zeoseven.com/144/main/result.css`                    | 打开 popup 或控制中心时；在网页里只有你主动拾取元素之后 | 加载扩展界面所用的霞鹜文楷字体   |
+| 目标                                                  | 时机                                | 用途                         |
+| ----------------------------------------------------- | ----------------------------------- | ---------------------------- |
+| `api.github.com/repos/Dnzzk2/PureRead/releases/latest` | 安装时、浏览器启动时，此后每 12 小时 | 读取最新版本号，用于提示更新 |
 
-第二条要说清楚：**平常浏览网页不会触发它。** 打开扩展弹窗或控制中心会加载一次；在普通网页上，只有你按下「页面拾取」之后，那个页面才会去取这份字体。字体由第三方服务 [zeoseven](https://fonts.zeoseven.com/) 提供。
+扩展界面字体只使用系统字体或你本机已安装的字体，不加载任何远程字体。
 
 ## 四、页面拾取读什么
 
@@ -68,7 +68,6 @@ manifest 中没有 `host_permissions` 字段 —— 扩展不需要常驻的跨�
 ## 六、第三方
 
 - **GitHub** —— 更新检查会请求 GitHub 的公开 API，受 [GitHub 隐私声明](https://docs.github.com/site-policy/privacy-policies/github-privacy-statement) 约束。
-- **zeoseven** —— 扩展界面字体的提供方，见 [fonts.zeoseven.com](https://fonts.zeoseven.com/)。
 
 除此之外没有其他第三方。
 
@@ -110,6 +109,7 @@ Everything stays in **your own browser**. The developer cannot reach any of it.
 | Key                           | Contents                              |
 | ----------------------------- | ------------------------------------- |
 | `uiLocale`                    | Interface language preference         |
+| `uiFont`                      | Interface font preference (system / local font) |
 | `fontCache`                   | Cached list of fonts installed locally |
 | `latestRelease` / `releaseUrl` | Result of the last update check       |
 
@@ -117,14 +117,13 @@ Syncing is handled entirely by the browser, and the data lives in your account. 
 
 ## 3. When PureRead goes online
 
-There are exactly two fixed, read-only requests. Apart from the IP, User-Agent, and Referer that any HTTP request must carry, **they send none of your data**:
+There is exactly one fixed, read-only request. Apart from the IP, User-Agent, and Referer that any HTTP request must carry, **it sends none of your data**:
 
-| Destination                                                   | When                                                                     | Purpose                                        |
-| ------------------------------------------------------------- | ------------------------------------------------------------------------ | ---------------------------------------------- |
-| `api.github.com/repos/Dnzzk2/PureRead/releases/latest`         | On install, on browser startup, and every 12 hours thereafter             | Read the latest version number for update notices |
-| `fontsapi.zeoseven.com/144/main/result.css`                    | When you open the popup or options page, and on a page only after you start picking an element | Load the LXGW WenKai typeface used by the extension's own interface |
+| Destination                                                   | When                                                         | Purpose                                        |
+| ------------------------------------------------------------- | ------------------------------------------------------------ | ---------------------------------------------- |
+| `api.github.com/repos/Dnzzk2/PureRead/releases/latest`         | On install, on browser startup, and every 12 hours thereafter | Read the latest version number for update notices |
 
-On the second one: **ordinary browsing does not trigger it.** Opening the popup or the options page loads it once; on a regular web page, it is fetched only after you press "pick element". The typeface is served by a third party, [zeoseven](https://fonts.zeoseven.com/).
+The extension's own interface uses the system font or a locally installed font only; no remote font is loaded.
 
 ## 4. What element picking reads
 
@@ -148,7 +147,6 @@ A content script is injected on all sites (`<all_urls>`), the access this featur
 ## 6. Third parties
 
 - **GitHub** — the update check calls GitHub's public API and is governed by the [GitHub Privacy Statement](https://docs.github.com/site-policy/privacy-policies/github-privacy-statement).
-- **zeoseven** — the provider of the interface typeface; see [fonts.zeoseven.com](https://fonts.zeoseven.com/).
 
 There are no other third parties.
 

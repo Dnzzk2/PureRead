@@ -4,6 +4,9 @@
 const t = (key, subs) => I18n.t(key, subs);
 const tHtml = (key, subs) => I18n.tHtml(key, subs);
 
+// 界面字体是设备级偏好，异步读到后套到 --font 上。
+UiFont.loadAndApply();
+
 // 取当前标签页可用于站点配置的域名；返回空串表示这个页面不支持站点级设置。
 //
 // 判定跟 content_scripts 的 <all_urls> 对齐：它只匹配 http / https / file / ftp
@@ -519,9 +522,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     loadSchemes();
   };
 
-  // 设置页改了语言时，开着的 popup 也跟着换。
+  // 设置页改了语言 / 界面字体时，开着的 popup 也跟着换。
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area !== "local" || !changes.uiLocale) return;
+    if (area !== "local") return;
+    if (changes.uiFont) UiFont.apply(changes.uiFont.newValue);
+    if (!changes.uiLocale) return;
     I18n.applyPref(changes.uiLocale.newValue);
     applyLocale();
   });

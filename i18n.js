@@ -48,7 +48,7 @@ const I18n = (() => {
       "options.selectors.desc":
         "Force a font preset onto specific elements — one selector per line, e.g. <code>.article-body</code>.",
       "options.selectors.note":
-        "Separate with commas or newlines. For an exclusion, list the element itself — you don't need to add <code>::before</code>.",
+        "Separate with commas or newlines. For an exclusion, list the element itself — you don't need to add <code>::before</code>. Shadow DOM internals are covered automatically; to target one component specifically, use <code>host::part(name)</code>, and the picker writes an <code>outer &gt;&gt;&gt; inner::part(name)</code> chain for nested shadow roots.",
       "options.selectors.label.standard": "Standard",
       "options.selectors.label.mono": "Code / monospace",
       "options.selectors.label.math": "Math",
@@ -57,12 +57,15 @@ const I18n = (() => {
       "options.selectors.savedBody": "Selectors saved. They apply immediately, no page refresh needed.",
 
       // ── options：内嵌框架 ──────────────────────────────────
-      "options.frames.title": "Embedded frames",
+      "options.frames.title": "Embedded content",
       "options.frames.desc":
-        "Comments, videos, documents, and other content are often rendered inside an iframe. This controls whether font replacement reaches inside them.",
+        "Comments, videos, and documents often live in iframes; components often use Shadow DOM. These switches control whether font replacement follows them inside.",
       "options.frames.toggle": "Apply fonts inside iframes",
       "options.frames.hint":
         "Off leaves embedded content on its original fonts. Site rules still decide whether the page is styled at all.",
+      "options.frames.shadowToggle": "Apply fonts inside Shadow DOM",
+      "options.frames.shadowHint":
+        "Writes the same font rules into every open shadow root, so nested components follow along. Code editors use the code/mono font; input fields follow the body font.",
       "options.frames.saveFailedTitle": "Couldn't save",
       "options.frames.saveFailedBody":
         "The switch wasn't saved. Check your sync storage quota and try again.",
@@ -142,6 +145,16 @@ const I18n = (() => {
         "Pick the language for the extension's own interface. \"Follow browser\" tracks your browser's UI language.",
       "options.language.auto": "Follow browser",
 
+      // ── options：界面字体 ──────────────────────────────────
+      "options.uiFont.title": "Interface font",
+      "options.uiFont.desc":
+        "Only affects the extension's own popup, Control Center, and picker overlay — never the fonts replaced on web pages. The default is the system font; no remote font is loaded.",
+      "options.uiFont.system": "System default",
+      "options.uiFont.reset": "Reset to default",
+      "options.uiFont.saveFailedTitle": "Couldn't save",
+      "options.uiFont.saveFailedBody":
+        "The interface font wasn't saved. Try again.",
+
       // ── popup ──────────────────────────────────────────────
       "popup.advanced": "Settings",
       "popup.masterSwitch": "Master switch",
@@ -193,6 +206,8 @@ const I18n = (() => {
       "picker.waitingSelector": "Generating selector…",
       "picker.tip.target": "Target element",
       "picker.tip.selector": "Selector",
+      "picker.tip.shadowBlocked":
+        "Inside a shadow root with no exposed part; page CSS can't reach it.",
       "picker.tip.click": "confirm",
       "picker.tip.esc": "exit",
       "picker.hint.applied": "Changes apply immediately",
@@ -203,6 +218,8 @@ const I18n = (() => {
       "picker.toast.cancelled": "Picker cancelled",
       "picker.toast.noSelector":
         "Couldn't build a selector for that element — try another one.",
+      "picker.toast.noPart":
+        "This component doesn't expose a part, so page CSS can't style its internals.",
       "picker.toast.saveFailed": "Couldn't save: {error}",
     },
 
@@ -242,7 +259,7 @@ const I18n = (() => {
       "options.selectors.desc":
         "将特定元素强制应用字体预设，每行一个选择器（如 <code>.article-body</code>）。",
       "options.selectors.note":
-        "支持逗号或换行分隔。排除项写元素本身即可，不需要手动写 <code>::before</code>。",
+        "支持逗号或换行分隔。排除项写元素本身即可，不需要手动写 <code>::before</code>。Shadow DOM 内部默认已自动覆盖；需要单独指定某个组件时用 <code>host::part(name)</code>，嵌套 shadow 由拾取器写入 <code>outer &gt;&gt;&gt; inner::part(name)</code> 链。",
       "options.selectors.label.standard": "标准字体",
       "options.selectors.label.mono": "代码 / 等宽",
       "options.selectors.label.math": "数学公式",
@@ -251,12 +268,15 @@ const I18n = (() => {
       "options.selectors.savedBody": "补充选择器已保存，已即时生效，无需刷新页面。",
 
       // ── options：内嵌框架 ──────────────────────────────────
-      "options.frames.title": "内嵌框架",
+      "options.frames.title": "内嵌内容",
       "options.frames.desc":
-        "页面里的评论、视频、文档等内容常放在 iframe 中。这里决定字体替换是否写进这些内嵌框架。",
+        "评论、视频、文档常放在 iframe 里，组件则常使用 Shadow DOM。这里决定字体替换是否跟随进这些内嵌内容。",
       "options.frames.toggle": "应用到内嵌框架",
       "options.frames.hint":
         "关闭后，内嵌内容保持它原本的字体；站点级开关仍然决定整页是否启用替换。",
+      "options.frames.shadowToggle": "应用到 Shadow DOM",
+      "options.frames.shadowHint":
+        "会把同一套字体写进开放的 shadow root，嵌套组件也会跟随；代码编辑器使用代码/等宽字体，输入框跟随正文字体。",
       "options.frames.saveFailedTitle": "保存失败",
       "options.frames.saveFailedBody":
         "开关状态没有保存成功。请检查同步存储空间后重试。",
@@ -332,6 +352,15 @@ const I18n = (() => {
         "选择扩展界面的显示语言。「跟随浏览器」会随浏览器的界面语言自动切换。",
       "options.language.auto": "跟随浏览器",
 
+      // ── options：界面字体 ──────────────────────────────────
+      "options.uiFont.title": "界面字体",
+      "options.uiFont.desc":
+        "只影响扩展自己的弹窗、控制中心和拾取浮层，不影响网页字体替换。默认使用系统字体，不加载任何远程字体。",
+      "options.uiFont.system": "系统默认",
+      "options.uiFont.reset": "恢复默认",
+      "options.uiFont.saveFailedTitle": "保存失败",
+      "options.uiFont.saveFailedBody": "界面字体没有保存成功，请重试。",
+
       // ── popup ──────────────────────────────────────────────
       "popup.advanced": "高级设置",
       "popup.masterSwitch": "总开关",
@@ -383,6 +412,8 @@ const I18n = (() => {
       "picker.waitingSelector": "等待生成代码...",
       "picker.tip.target": "目标元素",
       "picker.tip.selector": "生成选择器",
+      "picker.tip.shadowBlocked":
+        "元素在 shadow root 内且未暴露 part，页面 CSS 无法命中它。",
       "picker.tip.click": "确认",
       "picker.tip.esc": "退出",
       "picker.hint.applied": "更改已即时应用",
@@ -392,6 +423,8 @@ const I18n = (() => {
       "picker.toast.undoFailed": "撤销失败：{error}",
       "picker.toast.cancelled": "已取消页面拾取",
       "picker.toast.noSelector": "未能生成可用的选择器，请换一个元素试试。",
+      "picker.toast.noPart":
+        "该组件没有暴露 part，无法从页面 CSS 修改它的内部元素。",
       "picker.toast.saveFailed": "保存失败：{error}",
     },
   };
