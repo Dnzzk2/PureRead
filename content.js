@@ -718,6 +718,16 @@ function applyStyles(mapping, selectors, { shadowDom = false } = {}) {
     `:not(${selector} *)`,
   ]).join("");
 
+  // 有些组件不用原生 placeholder，而是另外渲染一层文字（Reddit 的
+  // faceplate-search-input 就是 part="centered-placeholder"）。这一层通常
+  // 带 aria-hidden="true" 给读屏器让路，结果被上面的图标排除规则跳过；
+  // 这里单独识别，让它也跟随标准字体。
+  const PLACEHOLDER_OVERLAY_SELECTORS = [
+    '[part*="placeholder" i]',
+    '[class*="placeholder" i]',
+    '[data-placeholder]',
+  ];
+
   const allExcludeLines = parseSelectorList(selectorConfig.exclude, {
     stripPseudo: true,
   });
@@ -744,6 +754,12 @@ function applyStyles(mapping, selectors, { shadowDom = false } = {}) {
     `${selector}${EDITOR_BOOST}${manualExcludeGate}`,
     `${selector}${EDITOR_BOOST} *${manualExcludeGate}`,
   ]).join(", ");
+  const placeholderOverlaySelectorsGated = PLACEHOLDER_OVERLAY_SELECTORS.flatMap(
+    (selector) => [
+      `${selector}:not(#pure-read-placeholder-overlay-never)${manualExcludeGate}`,
+      `${selector} *:not(#pure-read-placeholder-overlay-never)${manualExcludeGate}`,
+    ],
+  ).join(", ");
 
   // 链式额外匹配是 inline style，shadow root 里也有上一轮的注入样式；
   // 读原字体前必须全部撤掉，否则排除项读到的是自己写的字体。
@@ -804,6 +820,22 @@ function applyStyles(mapping, selectors, { shadowDom = false } = {}) {
       ${font(mapping.standard, "sans-serif")}
     }
 
+    ${mapping.standard ? `
+    /* 占位符字体：页面经常给 ::placeholder 单独声明字体，只改 textarea
+       自身不会影响占位文字。用 inherit 让它跟随输入框的最终字体，
+       这样标准字体、代码字体和额外匹配都能一起生效。 */
+    body input:not(#pure-read-placeholder-never)::placeholder,
+    body textarea:not(#pure-read-placeholder-never)::placeholder {
+      font-family: inherit !important;
+    }
+
+    /* 组件自绘的占位文字层，常见于带 part/class="...placeholder" 的
+       独立 span。它可能带 aria-hidden，不能跟随普通标准规则。 */
+    ${placeholderOverlaySelectorsGated} {
+      ${font(mapping.standard, "sans-serif")}
+    }
+    ` : ""}
+
     /* 代码块 */
     body pre${manualExcludeGate}, body code${manualExcludeGate}, body kbd${manualExcludeGate}, body samp${manualExcludeGate},
     body pre *${manualExcludeGate}, body code *${manualExcludeGate}, body kbd *${manualExcludeGate}, body samp *${manualExcludeGate},
@@ -841,6 +873,19 @@ function applyStyles(mapping, selectors, { shadowDom = false } = {}) {
       *${exclude.code}${exclude.media}${exclude.player}${exclude.icon}${editorGate}:not(math):not(.katex)${manualExcludeGate} {
         ${font(mapping.standard, "sans-serif")}
       }
+
+      ${mapping.standard ? `
+      /* 占位符跟随输入框的最终字体，和文档侧规则一致。 */
+      input:not(#pure-read-placeholder-never)::placeholder,
+      textarea:not(#pure-read-placeholder-never)::placeholder {
+        font-family: inherit !important;
+      }
+
+      /* 组件自绘的占位文字层，和文档侧规则一致。 */
+      ${placeholderOverlaySelectorsGated} {
+        ${font(mapping.standard, "sans-serif")}
+      }
+      ` : ""}
 
       pre${manualExcludeGate}, code${manualExcludeGate}, kbd${manualExcludeGate}, samp${manualExcludeGate},
       pre *${manualExcludeGate}, code *${manualExcludeGate}, kbd *${manualExcludeGate}, samp *${manualExcludeGate},
